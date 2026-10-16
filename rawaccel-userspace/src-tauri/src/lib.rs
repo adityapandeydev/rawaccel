@@ -4,6 +4,7 @@ pub mod driver;
 pub mod math;
 pub mod models;
 pub mod mouse_tracker;
+pub mod persistence;
 
 #[tauri::command]
 fn apply_settings(settings_json: String) -> Result<(), String> {

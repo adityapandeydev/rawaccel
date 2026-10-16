@@ -309,44 +309,21 @@ pub fn load_settings_from_disk() -> Result<String, String> {
     Ok(raw_content)
 }
 
-/// Saves settings to disk:
-/// 1. Saves to primary local executable directory (`settings.json`)
-/// 2. Also saves a mirrored copy in %LocalAppData%\RawAccel\settings.json for safe backup
-pub fn save_settings_to_disk(settings_json: &str) -> Result<(), String> {
-    let local_path = get_local_settings_path();
-    let mut wrote_local = false;
-
-    if let Ok(()) = fs::write(&local_path, settings_json) {
-        wrote_local = true;
-    } else {
-        // In dev mode, try writing to CWD if writing to exe dir fails
-        let cwd_path = PathBuf::from("settings.json");
-        if let Ok(()) = fs::write(&cwd_path, settings_json) {
-            wrote_local = true;
-        }
-    }
-
-    // Always mirror to %LocalAppData%\RawAccel\settings.json
-    if let Some(appdata_path) = get_appdata_settings_path() {
-        if let Some(parent) = appdata_path.parent() {
-            let _ = fs::create_dir_all(parent);
-        }
-        let _ = fs::write(&appdata_path, settings_json);
-    }
-
-    if wrote_local {
-        Ok(())
-    } else {
-        // If local write failed (e.g. read-only folder), but AppData succeeded
-        if let Some(appdata_path) = get_appdata_settings_path() {
-            if appdata_path.exists() {
-                return Ok(());
-            }
-        }
-        Err("Failed to write settings.json".to_string())
+pub(crate) fn settings_paths() -> crate::persistence::SettingsPaths {
+    crate::persistence::SettingsPaths {
+        primary: get_local_settings_path(),
+        fallback: std::env::current_dir()
+            .unwrap_or_else(|_| PathBuf::from("."))
+            .join("settings.json"),
+        mirror: get_appdata_settings_path(),
     }
 }
 
+/// Saves portable settings (with a CWD fallback) and an AppData mirror.
+/// Success means at least one write succeeded; partial failures are reported.
+pub fn save_settings_to_disk(settings_json: &str) -> Result<crate::persistence::SaveReport, String> {
+    crate::persistence::save(settings_json, &settings_paths())
+}
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct AppConfig {
