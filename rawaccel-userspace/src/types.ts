@@ -1,3 +1,11 @@
+export interface SettingsApplyReport {
+  applied: boolean;
+  saved: boolean;
+  saved_paths: string[];
+  warnings: string[];
+  save_error: string | null;
+}
+
 export interface SettingsLoadReport {
   settings_json: string;
   source: string;

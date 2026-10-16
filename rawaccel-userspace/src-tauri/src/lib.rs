@@ -1,3 +1,4 @@
+mod apply;
 pub mod config;
 pub mod devices;
 pub mod driver;
@@ -7,19 +8,12 @@ pub mod mouse_tracker;
 pub mod persistence;
 
 #[tauri::command]
-fn apply_settings(settings_json: String) -> Result<(), String> {
-    let app_config: config::AppConfig = serde_json::from_str(&settings_json)
-        .map_err(|e| format!("Failed to parse settings JSON: {}", e))?;
-
-    app_config.validate()?;
-
-    // Apply to driver
-    driver::apply_config(&app_config)?;
-
-    // Persist settings in local executable directory with mirrored AppData backup
-    config::save_settings_to_disk(&settings_json)?;
-
-    Ok(())
+fn apply_settings(settings_json: String) -> Result<apply::ApplyReport, String> {
+    apply::apply_with(
+        &settings_json,
+        driver::apply_config,
+        config::save_settings_to_disk,
+    )
 }
 
 #[tauri::command]

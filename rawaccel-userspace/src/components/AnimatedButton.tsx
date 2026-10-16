@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 
 interface AnimatedButtonProps {
-  onClick: () => Promise<void> | void;
+  onClick: () => Promise<void | boolean> | void | boolean;
   defaultText: React.ReactNode;
   successText: React.ReactNode;
   className?: string;
@@ -13,7 +13,10 @@ export function AnimatedButton({ onClick, defaultText, successText, className = 
   const handleClick = async () => {
     if (isSuccess) return;
     try {
-      await onClick();
+      const succeeded = await onClick();
+      // A completed operation may have a partial outcome already shown by its
+      // caller. Do not flash full success for applied-but-unsaved settings.
+      if (succeeded === false) return;
       setIsSuccess(true);
       setTimeout(() => setIsSuccess(false), 2000);
     } catch (e) {

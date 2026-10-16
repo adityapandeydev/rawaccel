@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { Moon, Sun, Monitor, Layers, Activity, Plus, Save, Download, Upload, Mouse, Menu, X, Settings, Maximize, Minimize, Check } from "lucide-react";
 import "./index.css";
-import { Profile, defaultProfile, AccelArgs, Device, DeviceConfig, SettingsLoadReport } from "./types";
+import { Profile, defaultProfile, AccelArgs, Device, DeviceConfig, SettingsLoadReport, SettingsApplyReport } from "./types";
 import { NumberInput } from "./components/NumberInput";
 import { CurveGraph } from "./components/CurveGraph";
 import { CustomSelect } from "./components/CustomSelect";
@@ -175,7 +175,7 @@ function App() {
     return null;
   }
 
-  async function applySettings(overrideConfig?: DeviceConfig[]) {
+  async function applySettings(overrideConfig?: DeviceConfig[]): Promise<boolean> {
     if (profiles.length === 0) {
       setModalState({ isOpen: true, title: "No Profiles", message: "At least one profile is required." });
       throw new Error("No profiles");
@@ -210,11 +210,27 @@ function App() {
         profiles: profiles,
         devices: configToUse
       });
-      await invoke('apply_settings', { settingsJson: profileJson });
-      console.log("Settings applied successfully!");
+      const result = await invoke<SettingsApplyReport>('apply_settings', { settingsJson: profileJson });
+      if (!result.saved) {
+        setModalState({
+          isOpen: true,
+          title: "Applied, But Not Saved",
+          message: `Your settings are active in the driver, but could not be saved. They may be lost after restarting.\n${result.save_error ?? "No settings location could be updated."}`,
+        });
+        return false;
+      }
+      if (result.warnings.length > 0) {
+        setModalState({
+          isOpen: true,
+          title: "Applied and Saved With Warnings",
+          message: `Your settings are active and were saved to:\n${result.saved_paths.join("\n")}\nSome locations could not be updated:\n${result.warnings.join("\n")}`,
+        });
+      }
+      console.log("Settings applied and saved successfully.");
+      return true;
     } catch (error) {
       console.error("Failed to apply settings:", error);
-      setModalState({ isOpen: true, title: "Application Error", message: "Failed to apply settings: " + error });
+      setModalState({ isOpen: true, title: "Settings Were Not Applied", message: String(error) });
       throw error;
     }
   }
@@ -646,9 +662,9 @@ function App() {
                     const newConfig = [...deviceConfig];
                     newConfig[applyIndex] = { ...newConfig[applyIndex], profile_id: activeProfile.name };
                     setDeviceConfig(newConfig);
-                    await applySettings(newConfig);
+                    return await applySettings(newConfig);
                   } else {
-                    await applySettings();
+                    return await applySettings();
                   }
                 }}
                 defaultText={<><Save size={16} /> {profiles.length > 1 ? "Save All to Driver" : "Apply Settings"}</>}
