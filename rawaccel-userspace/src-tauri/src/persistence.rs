@@ -1,7 +1,8 @@
 use serde::Serialize;
-use std::fs;
-use std::io;
+use std::fs::{self, File, OpenOptions};
+use std::io::{self, Write};
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicU64, Ordering};
 
 /// Explicit paths keep persistence tests away from personal settings.
 pub(crate) struct SettingsPaths {
@@ -17,9 +18,87 @@ pub struct SaveReport {
 }
 
 pub(crate) fn save(settings_json: &str, paths: &SettingsPaths) -> Result<SaveReport, String> {
-    save_with_writer(settings_json, paths, |path, content| {
-        fs::write(path, content)
+    save_with_writer(settings_json, paths, atomic_write)
+}
+
+pub(crate) fn backup_path(path: &Path) -> PathBuf {
+    let mut name = path.as_os_str().to_os_string();
+    name.push(".bak");
+    PathBuf::from(name)
+}
+
+fn atomic_write(path: &Path, content: &str) -> io::Result<()> {
+    atomic_write_with_replace(path, content, |source, destination| {
+        fs::rename(source, destination)
     })
+}
+
+fn atomic_write_with_replace(
+    path: &Path,
+    content: &str,
+    replace: impl FnOnce(&Path, &Path) -> io::Result<()>,
+) -> io::Result<()> {
+    let staged = StagedFile::new(path, content.as_bytes())?;
+    match fs::read(path) {
+        Ok(previous) => {
+            // Preserve the original before replacing it, including legacy JSON.
+            let backup = backup_path(path);
+            let staged_backup = StagedFile::new(&backup, &previous)?;
+            fs::rename(&staged_backup.path, &backup)?;
+        }
+        Err(error) if error.kind() == io::ErrorKind::NotFound => {}
+        Err(error) => return Err(error),
+    }
+    // Same-directory staging keeps rename on one volume. A failed replacement
+    // leaves the original and the recovery copy available.
+    replace(&staged.path, path)
+}
+
+static NEXT_STAGED_FILE: AtomicU64 = AtomicU64::new(0);
+
+struct StagedFile {
+    path: PathBuf,
+    file: Option<File>,
+}
+
+impl StagedFile {
+    fn new(destination: &Path, content: &[u8]) -> io::Result<Self> {
+        let filename = destination
+            .file_name()
+            .ok_or_else(|| io::Error::other("Settings destination must be a file"))?;
+        loop {
+            let mut name = std::ffi::OsString::from(".");
+            name.push(filename);
+            name.push(format!(
+                ".{}-{}.tmp",
+                std::process::id(),
+                NEXT_STAGED_FILE.fetch_add(1, Ordering::Relaxed)
+            ));
+            let path = destination.with_file_name(name);
+            let file = match OpenOptions::new().write(true).create_new(true).open(&path) {
+                Ok(file) => file,
+                Err(error) if error.kind() == io::ErrorKind::AlreadyExists => continue,
+                Err(error) => return Err(error),
+            };
+            let mut staged = Self {
+                path,
+                file: Some(file),
+            };
+            let file = staged.file.as_mut().unwrap();
+            file.write_all(content)?;
+            file.sync_all()?;
+            staged.file.take();
+            return Ok(staged);
+        }
+    }
+}
+
+impl Drop for StagedFile {
+    fn drop(&mut self) {
+        // Close first so Windows can delete the file after a write/sync error.
+        self.file.take();
+        let _ = fs::remove_file(&self.path);
+    }
 }
 
 fn save_with_writer(
@@ -79,7 +158,6 @@ fn save_with_writer(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::sync::atomic::{AtomicU64, Ordering};
 
     static NEXT_TEST_DIR: AtomicU64 = AtomicU64::new(0);
 
@@ -175,5 +253,45 @@ mod tests {
 
         assert_eq!(report.saved_paths.len(), 2);
         assert_eq!(fs::read_to_string(paths.fallback).unwrap(), "new settings");
+    }
+
+    #[test]
+    fn replacement_preserves_previous_contents_and_leaves_no_temp_files() {
+        let dir = TestDirectory::new();
+        let path = dir.0.join("settings.json");
+        fs::write(&path, "original").unwrap();
+        atomic_write(&path, "replacement").unwrap();
+        atomic_write(&path, "latest").unwrap();
+        assert_eq!(fs::read_to_string(&path).unwrap(), "latest");
+        assert_eq!(
+            fs::read_to_string(backup_path(&path)).unwrap(),
+            "replacement"
+        );
+        assert_eq!(fs::read_dir(&dir.0).unwrap().count(), 2);
+    }
+
+    #[test]
+    fn failed_replacement_preserves_original_and_recovery_copy() {
+        let dir = TestDirectory::new();
+        let path = dir.0.join("settings.json");
+        fs::write(&path, "original").unwrap();
+        atomic_write_with_replace(&path, "replacement", |_, _| {
+            Err(io::Error::new(io::ErrorKind::PermissionDenied, "locked"))
+        })
+        .unwrap_err();
+        assert_eq!(fs::read_to_string(&path).unwrap(), "original");
+        assert_eq!(fs::read_to_string(backup_path(&path)).unwrap(), "original");
+        assert_eq!(fs::read_dir(&dir.0).unwrap().count(), 2);
+    }
+
+    #[test]
+    fn failed_backup_preserves_original_and_cleans_staged_file() {
+        let dir = TestDirectory::new();
+        let path = dir.0.join("settings.json");
+        fs::write(&path, "original").unwrap();
+        fs::create_dir(backup_path(&path)).unwrap();
+        atomic_write(&path, "replacement").unwrap_err();
+        assert_eq!(fs::read_to_string(&path).unwrap(), "original");
+        assert_eq!(fs::read_dir(&dir.0).unwrap().count(), 2);
     }
 }
