@@ -1,3 +1,10 @@
+export interface SettingsLoadReport {
+  settings_json: string;
+  source: string;
+  recovered: boolean;
+  warnings: string[];
+}
+
 export interface Vec2D {
   x: number;
   y: number;

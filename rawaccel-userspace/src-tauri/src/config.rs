@@ -1,6 +1,5 @@
 use crate::models;
 use serde::{Deserialize, Serialize};
-use std::fs;
 use std::path::PathBuf;
 
 /// Gets the primary settings path: right next to the running executable.
@@ -277,36 +276,32 @@ pub fn parse_or_migrate_settings(raw_json: &str) -> Result<AppConfig, String> {
     Err("Could not parse configuration. Ensure it is a valid Raw Accel JSON file.".to_string())
 }
 
-/// Loads settings from disk:
-/// 1. First tries local executable directory (`get_local_settings_path()`)
-/// 2. If not found, falls back to current working directory (`settings.json`)
-/// 3. If not found, falls back to AppData (`%LocalAppData%\RawAccel\settings.json`)
-/// Automatically upgrades legacy C# Raw Accel format if detected.
+/// Loads and validates candidates without rewriting originals or normalizing files.
+pub fn load_settings_with_report() -> Result<crate::persistence::LoadReport, String> {
+    crate::persistence::load(&settings_paths(), parse_settings_for_load)
+}
+
+/// The silent startup path needs only JSON; diagnostics remain available in logs.
 pub fn load_settings_from_disk() -> Result<String, String> {
-    let raw_content = if let Ok(content) = fs::read_to_string(get_local_settings_path()) {
-        content
-    } else {
-        let cwd_path = PathBuf::from("settings.json");
-        if cwd_path != get_local_settings_path() && cwd_path.exists() {
-            fs::read_to_string(&cwd_path).map_err(|e| e.to_string())?
-        } else if let Some(appdata_path) = get_appdata_settings_path() {
-            fs::read_to_string(&appdata_path).map_err(|_| "No settings.json found".to_string())?
-        } else {
-            return Err("No settings.json found".to_string());
-        }
-    };
-
-    // If it's legacy or needs migration, parse_or_migrate_settings upgrades it
-    if let Ok(config) = parse_or_migrate_settings(&raw_content) {
-        if let Ok(modern_json) = serde_json::to_string_pretty(&config) {
-            if modern_json != raw_content {
-                let _ = save_settings_to_disk(&modern_json);
-            }
-            return Ok(modern_json);
-        }
+    let report = load_settings_with_report()?;
+    for warning in &report.warnings {
+        eprintln!("Settings recovery: {warning}");
     }
+    Ok(report.settings_json)
+}
 
-    Ok(raw_content)
+pub(crate) fn parse_settings_for_load(raw: &str) -> Result<String, String> {
+    // Modern data that deserializes must pass validation; never reinterpret a
+    // validation failure as legacy. Preserve unknown editor metadata and format.
+    if let Ok(config) = serde_json::from_str::<AppConfig>(raw) {
+        config.validate()?;
+        return Ok(raw.to_string());
+    }
+    // Legacy migration is in memory only. Explicit Apply/Save preserves the
+    // original via the persistence layer's recovery copy.
+    let config = parse_or_migrate_settings(raw)?;
+    config.validate()?;
+    serde_json::to_string_pretty(&config).map_err(|error| error.to_string())
 }
 
 pub(crate) fn settings_paths() -> crate::persistence::SettingsPaths {
@@ -818,6 +813,31 @@ impl AppAccelArgs {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn loading_invalid_modern_settings_preserves_validation_error() {
+        let raw = "{\"profiles\":[],\"devices\":[]}";
+        assert_eq!(
+            parse_settings_for_load(raw).unwrap_err(),
+            "At least one profile is required"
+        );
+    }
+
+    #[test]
+    fn loading_modern_settings_preserves_unknown_editor_metadata_and_format() {
+        let config = AppConfig {
+            profiles: vec![AppProfile {
+                name: "Portable".to_string(),
+                ..Default::default()
+            }],
+            devices: vec![],
+        };
+        let mut value = serde_json::to_value(config).unwrap();
+        value["profiles"][0]["accel_x"]["lookup_csv_backup"] =
+            serde_json::json!([{ "x": 1, "y": 2 }, { "x": 3, "y": 4 }]);
+        let raw = serde_json::to_string_pretty(&value).unwrap();
+        assert_eq!(parse_settings_for_load(&raw).unwrap(), raw);
+    }
 
     #[test]
     fn lookup_points_are_written_as_driver_pairs() {

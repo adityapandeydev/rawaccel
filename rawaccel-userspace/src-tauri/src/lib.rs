@@ -23,8 +23,8 @@ fn apply_settings(settings_json: String) -> Result<(), String> {
 }
 
 #[tauri::command]
-fn load_settings() -> Result<String, String> {
-    config::load_settings_from_disk()
+fn load_settings() -> Result<persistence::LoadReport, String> {
+    config::load_settings_with_report()
 }
 
 #[tauri::command]

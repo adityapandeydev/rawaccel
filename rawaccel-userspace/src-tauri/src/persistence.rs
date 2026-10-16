@@ -17,6 +17,59 @@ pub struct SaveReport {
     pub warnings: Vec<String>,
 }
 
+#[derive(Debug, Serialize)]
+pub struct LoadReport {
+    pub settings_json: String,
+    pub source: String,
+    pub recovered: bool,
+    pub warnings: Vec<String>,
+}
+
+pub(crate) fn load(
+    paths: &SettingsPaths,
+    parse: impl Fn(&str) -> Result<String, String>,
+) -> Result<LoadReport, String> {
+    let mut locations = vec![paths.primary.clone()];
+    for path in std::iter::once(&paths.fallback).chain(paths.mirror.iter()) {
+        if !locations.contains(path) {
+            locations.push(path.clone());
+        }
+    }
+    // Prefer current copies to older recovery files, retaining portable priority.
+    let candidates: Vec<_> = locations
+        .iter()
+        .map(|path| (path.clone(), false))
+        .chain(locations.iter().map(|path| (backup_path(path), true)))
+        .collect();
+    let mut warnings = Vec::new();
+    for (path, is_backup) in candidates {
+        let result = match fs::read_to_string(&path) {
+            Ok(raw) => parse(&raw),
+            Err(error) if error.kind() == io::ErrorKind::NotFound => continue,
+            Err(error) => Err(error.to_string()),
+        };
+        match result {
+            Ok(settings_json) => {
+                return Ok(LoadReport {
+                    settings_json,
+                    source: path.display().to_string(),
+                    recovered: is_backup || !warnings.is_empty(),
+                    warnings,
+                });
+            }
+            Err(error) => warnings.push(format!("{}: {}", path.display(), error)),
+        }
+    }
+    if warnings.is_empty() {
+        Err("No settings.json found".to_string())
+    } else {
+        Err(format!(
+            "No valid settings could be loaded:\n{}",
+            warnings.join("\n")
+        ))
+    }
+}
+
 pub(crate) fn save(settings_json: &str, paths: &SettingsPaths) -> Result<SaveReport, String> {
     save_with_writer(settings_json, paths, atomic_write)
 }
@@ -41,10 +94,15 @@ fn atomic_write_with_replace(
     let staged = StagedFile::new(path, content.as_bytes())?;
     match fs::read(path) {
         Ok(previous) => {
-            // Preserve the original before replacing it, including legacy JSON.
             let backup = backup_path(path);
-            let staged_backup = StagedFile::new(&backup, &previous)?;
-            fs::rename(&staged_backup.path, &backup)?;
+            let previous_is_valid = std::str::from_utf8(&previous)
+                .is_ok_and(|raw| crate::config::parse_settings_for_load(raw).is_ok());
+            // Saving after recovery must not overwrite the last good backup
+            // with the corrupt primary, especially if replacement then fails.
+            if !backup.is_file() || previous_is_valid {
+                let staged_backup = StagedFile::new(&backup, &previous)?;
+                fs::rename(&staged_backup.path, &backup)?;
+            }
         }
         Err(error) if error.kind() == io::ErrorKind::NotFound => {}
         Err(error) => return Err(error),
@@ -259,14 +317,14 @@ mod tests {
     fn replacement_preserves_previous_contents_and_leaves_no_temp_files() {
         let dir = TestDirectory::new();
         let path = dir.0.join("settings.json");
-        fs::write(&path, "original").unwrap();
-        atomic_write(&path, "replacement").unwrap();
-        atomic_write(&path, "latest").unwrap();
-        assert_eq!(fs::read_to_string(&path).unwrap(), "latest");
-        assert_eq!(
-            fs::read_to_string(backup_path(&path)).unwrap(),
-            "replacement"
-        );
+        let original = valid_settings("original");
+        let replacement = valid_settings("replacement");
+        let latest = valid_settings("latest");
+        fs::write(&path, &original).unwrap();
+        atomic_write(&path, &replacement).unwrap();
+        atomic_write(&path, &latest).unwrap();
+        assert_eq!(fs::read_to_string(&path).unwrap(), latest);
+        assert_eq!(fs::read_to_string(backup_path(&path)).unwrap(), replacement);
         assert_eq!(fs::read_dir(&dir.0).unwrap().count(), 2);
     }
 
@@ -293,5 +351,98 @@ mod tests {
         atomic_write(&path, "replacement").unwrap_err();
         assert_eq!(fs::read_to_string(&path).unwrap(), "original");
         assert_eq!(fs::read_dir(&dir.0).unwrap().count(), 2);
+    }
+
+    fn valid_settings(name: &str) -> String {
+        serde_json::to_string(&crate::config::AppConfig {
+            profiles: vec![crate::config::AppProfile {
+                name: name.to_string(),
+                ..Default::default()
+            }],
+            devices: vec![],
+        })
+        .unwrap()
+    }
+
+    #[test]
+    fn failed_save_after_recovery_keeps_the_last_valid_backup() {
+        let dir = TestDirectory::new();
+        let path = dir.0.join("settings.json");
+        let good = valid_settings("recoverable");
+        fs::write(&path, "broken JSON").unwrap();
+        fs::write(backup_path(&path), &good).unwrap();
+        atomic_write_with_replace(&path, &good, |_, _| {
+            Err(io::Error::new(io::ErrorKind::PermissionDenied, "locked"))
+        })
+        .unwrap_err();
+        assert_eq!(fs::read_to_string(&path).unwrap(), "broken JSON");
+        assert_eq!(fs::read_to_string(backup_path(&path)).unwrap(), good);
+    }
+
+    fn parse_test_json(raw: &str) -> Result<String, String> {
+        serde_json::from_str::<serde_json::Value>(raw)
+            .map(|_| raw.to_string())
+            .map_err(|error| error.to_string())
+    }
+
+    #[test]
+    fn corrupt_primary_recovers_current_mirror_without_rewriting_files() {
+        let dir = TestDirectory::new();
+        let paths = dir.paths();
+        fs::write(&paths.primary, "broken JSON").unwrap();
+        let mirror = paths.mirror.as_ref().unwrap();
+        fs::create_dir_all(mirror.parent().unwrap()).unwrap();
+        fs::write(mirror, "{\"current\":true}").unwrap();
+        fs::write(backup_path(&paths.primary), "{\"older\":true}").unwrap();
+
+        let report = load(&paths, parse_test_json).unwrap();
+
+        assert_eq!(report.settings_json, "{\"current\":true}");
+        assert_eq!(report.source, mirror.display().to_string());
+        assert!(report.recovered);
+        assert_eq!(report.warnings.len(), 1);
+        assert_eq!(fs::read_to_string(&paths.primary).unwrap(), "broken JSON");
+        assert_eq!(fs::read_to_string(mirror).unwrap(), "{\"current\":true}");
+    }
+
+    #[test]
+    fn invalid_current_copies_recover_previous_backup() {
+        let dir = TestDirectory::new();
+        let paths = dir.paths();
+        fs::write(&paths.primary, "broken JSON").unwrap();
+        fs::write(backup_path(&paths.primary), "{\"older\":true}").unwrap();
+
+        let report = load(&paths, parse_test_json).unwrap();
+
+        assert_eq!(report.settings_json, "{\"older\":true}");
+        assert!(report.recovered);
+        assert!(report.source.ends_with(".bak"));
+    }
+
+    #[test]
+    fn valid_portable_file_wins_and_keeps_its_formatting() {
+        let dir = TestDirectory::new();
+        let paths = dir.paths();
+        let raw = "{ \"portable\" : true }\n";
+        fs::write(&paths.primary, raw).unwrap();
+        fs::write(&paths.fallback, "{\"cwd\":true}").unwrap();
+
+        let report = load(&paths, parse_test_json).unwrap();
+
+        assert_eq!(report.settings_json, raw);
+        assert!(!report.recovered);
+        assert!(report.warnings.is_empty());
+        assert_eq!(fs::read_to_string(&paths.primary).unwrap(), raw);
+        assert!(!backup_path(&paths.primary).exists());
+    }
+
+    #[test]
+    fn all_invalid_files_return_diagnostics_instead_of_invalid_json() {
+        let dir = TestDirectory::new();
+        let paths = dir.paths();
+        fs::write(&paths.primary, "broken JSON").unwrap();
+        let error = load(&paths, parse_test_json).unwrap_err();
+        assert!(error.contains("No valid settings"));
+        assert!(error.contains("portable.json"));
     }
 }

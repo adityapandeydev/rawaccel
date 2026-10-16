@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { Moon, Sun, Monitor, Layers, Activity, Plus, Save, Download, Upload, Mouse, Menu, X, Settings, Maximize, Minimize, Check } from "lucide-react";
 import "./index.css";
-import { Profile, defaultProfile, AccelArgs, Device, DeviceConfig } from "./types";
+import { Profile, defaultProfile, AccelArgs, Device, DeviceConfig, SettingsLoadReport } from "./types";
 import { NumberInput } from "./components/NumberInput";
 import { CurveGraph } from "./components/CurveGraph";
 import { CustomSelect } from "./components/CustomSelect";
@@ -227,8 +227,15 @@ function App() {
         setDevices(sysDevices);
         console.log("Detected devices:", sysDevices);
 
-        const result: string = await invoke('load_settings');
-        const parsed = JSON.parse(result);
+        const result = await invoke<SettingsLoadReport>('load_settings');
+        const parsed = JSON.parse(result.settings_json);
+        if (result.recovered) {
+          setModalState({
+            isOpen: true,
+            title: "Settings Recovered",
+            message: `Settings were recovered from ${result.source}. Your original files have not been changed.\n${result.warnings.join("\n")}`,
+          });
+        }
         if (parsed && parsed.profiles && parsed.profiles.length > 0) {
             console.log("Loaded settings from backend:", parsed.profiles);
             setProfiles(parsed.profiles);
@@ -257,6 +264,9 @@ function App() {
         }
       } catch (error) {
         console.error("Failed to load settings or devices on startup:", error);
+        if (error !== "No settings.json found") {
+          setModalState({ isOpen: true, title: "Settings Could Not Be Loaded", message: String(error) });
+        }
       }
     }
     initSettings();
