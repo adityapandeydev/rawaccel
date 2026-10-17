@@ -53,6 +53,7 @@ mod tests {
                 ..Default::default()
             }],
             devices: vec![],
+            default_device_config: None,
         })
         .unwrap()
     }

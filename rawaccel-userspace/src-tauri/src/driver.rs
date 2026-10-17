@@ -90,7 +90,9 @@ pub fn apply_config(config: &crate::config::AppConfig) -> Result<(), String> {
         std::ptr::write(base_ptr, ra::io_base::default());
         (*base_ptr).modifier_data_size = num_profiles as u32;
         (*base_ptr).device_data_size = num_devices as u32;
-        (*base_ptr).default_dev_cfg.poll_time_lock = false;
+        if let Some(defaults) = &config.default_device_config {
+            (*base_ptr).default_dev_cfg = defaults.to_native();
+        }
 
         let mod_ptr = buffer.as_mut_ptr().add(io_base_size) as *mut ra::modifier_settings;
         for i in 0..num_profiles {

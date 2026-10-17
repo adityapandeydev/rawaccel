@@ -1,0 +1,244 @@
+{
+  "profiles": [
+    {
+      "id": "stable-profile-0",
+      "name": "Tiered linear",
+      "domain_weights": {
+        "x": 1,
+        "y": 1
+      },
+      "range_weights": {
+        "x": 1,
+        "y": 1
+      },
+      "accel_x": {
+        "mode": "tiered",
+        "gain": true,
+        "input_offset": 0,
+        "output_offset": 0,
+        "acceleration": 0,
+        "decay_rate": 0.1,
+        "gamma": 1,
+        "motivity": 1.5,
+        "exponent_classic": 2,
+        "scale": 1,
+        "exponent_power": 2,
+        "limit": 2,
+        "sync_speed": 10,
+        "smooth": 0,
+        "t_type": "linear",
+        "tiered_multiplier1": 1,
+        "tiered_input_offset1": 5,
+        "tiered_multiplier2": 1.5,
+        "tiered_transition1": 10,
+        "tiered_input_offset2": 25,
+        "tiered_multiplier3": 2,
+        "tiered_transition2": 25,
+        "tiered_decay_rate1": 0.1,
+        "tiered_decay_rate2": 0.1,
+        "cap": {
+          "x": 15,
+          "y": 1.5
+        },
+        "cap_mode": "out",
+        "lookup_table": [],
+        "editor_note": "Preserve this extension"
+      },
+      "accel_y": {
+        "mode": "lookup",
+        "gain": true,
+        "input_offset": 0,
+        "output_offset": 0,
+        "acceleration": 0,
+        "decay_rate": 0.1,
+        "gamma": 1,
+        "motivity": 1.5,
+        "exponent_classic": 2,
+        "scale": 1,
+        "exponent_power": 2,
+        "limit": 2,
+        "sync_speed": 10,
+        "smooth": 0,
+        "t_type": "linear",
+        "tiered_multiplier1": 1,
+        "tiered_input_offset1": 0,
+        "tiered_multiplier2": 1.5,
+        "tiered_transition1": 10,
+        "tiered_input_offset2": 15,
+        "tiered_multiplier3": 2,
+        "tiered_transition2": 25,
+        "tiered_decay_rate1": 0.1,
+        "tiered_decay_rate2": 0.1,
+        "cap": {
+          "x": 15,
+          "y": 1.5
+        },
+        "cap_mode": "out",
+        "lookup_table": [
+          {
+            "x": 1,
+            "y": 2
+          },
+          {
+            "x": 8,
+            "y": 12
+          }
+        ],
+        "lookup_csv_backup": [
+          {
+            "x": 1,
+            "y": 3
+          },
+          {
+            "x": 8,
+            "y": 13
+          }
+        ],
+        "lookup_csv_backup_gain": false
+      },
+      "speed_processor_args": {
+        "whole": false,
+        "lp_norm": 2,
+        "input_speed_smooth_halflife": 0,
+        "scale_smooth_halflife": 0,
+        "output_speed_smooth_halflife": 0
+      },
+      "output_dpi": 1000,
+      "yx_output_dpi_ratio": 1,
+      "lr_output_dpi_ratio": 1,
+      "ud_output_dpi_ratio": 1,
+      "degrees_rotation": 12,
+      "degrees_snap": 0,
+      "speed_min": 1,
+      "speed_max": 90
+    },
+    {
+      "id": "stable-profile-1",
+      "name": "Tiered natural",
+      "domain_weights": {
+        "x": 1,
+        "y": 1
+      },
+      "range_weights": {
+        "x": 1,
+        "y": 1
+      },
+      "accel_x": {
+        "mode": "tiered",
+        "gain": true,
+        "input_offset": 0,
+        "output_offset": 0,
+        "acceleration": 0,
+        "decay_rate": 0.1,
+        "gamma": 1,
+        "motivity": 1.5,
+        "exponent_classic": 2,
+        "scale": 1,
+        "exponent_power": 2,
+        "limit": 2,
+        "sync_speed": 10,
+        "smooth": 0,
+        "t_type": "natural",
+        "tiered_multiplier1": 1,
+        "tiered_input_offset1": 5,
+        "tiered_multiplier2": 1.5,
+        "tiered_transition1": 10,
+        "tiered_input_offset2": 25,
+        "tiered_multiplier3": 2,
+        "tiered_transition2": 25,
+        "tiered_decay_rate1": 0.1,
+        "tiered_decay_rate2": 0.1,
+        "cap": {
+          "x": 15,
+          "y": 1.5
+        },
+        "cap_mode": "out",
+        "lookup_table": [],
+        "editor_note": "Preserve this extension"
+      },
+      "accel_y": {
+        "mode": "lookup",
+        "gain": true,
+        "input_offset": 0,
+        "output_offset": 0,
+        "acceleration": 0,
+        "decay_rate": 0.1,
+        "gamma": 1,
+        "motivity": 1.5,
+        "exponent_classic": 2,
+        "scale": 1,
+        "exponent_power": 2,
+        "limit": 2,
+        "sync_speed": 10,
+        "smooth": 0,
+        "t_type": "linear",
+        "tiered_multiplier1": 1,
+        "tiered_input_offset1": 0,
+        "tiered_multiplier2": 1.5,
+        "tiered_transition1": 10,
+        "tiered_input_offset2": 15,
+        "tiered_multiplier3": 2,
+        "tiered_transition2": 25,
+        "tiered_decay_rate1": 0.1,
+        "tiered_decay_rate2": 0.1,
+        "cap": {
+          "x": 15,
+          "y": 1.5
+        },
+        "cap_mode": "out",
+        "lookup_table": [
+          {
+            "x": 1,
+            "y": 2
+          },
+          {
+            "x": 8,
+            "y": 12
+          }
+        ],
+        "lookup_csv_backup": [
+          {
+            "x": 1,
+            "y": 3
+          },
+          {
+            "x": 8,
+            "y": 13
+          }
+        ],
+        "lookup_csv_backup_gain": false
+      },
+      "speed_processor_args": {
+        "whole": false,
+        "lp_norm": 2,
+        "input_speed_smooth_halflife": 0,
+        "scale_smooth_halflife": 0,
+        "output_speed_smooth_halflife": 0
+      },
+      "output_dpi": 1000,
+      "yx_output_dpi_ratio": 1,
+      "lr_output_dpi_ratio": 1,
+      "ud_output_dpi_ratio": 1,
+      "degrees_rotation": 12,
+      "degrees_snap": 0,
+      "speed_min": 1,
+      "speed_max": 90
+    }
+  ],
+  "devices": [
+    {
+      "id": "MOUSE-A",
+      "profile_id": "Tiered linear",
+      "disable": false,
+      "set_extra_info": true,
+      "poll_time_lock": true,
+      "dpi": 1600,
+      "polling_rate": 1000,
+      "clamp_min": 0.1,
+      "clamp_max": 80
+    }
+  ],
+  "editor_metadata": {
+    "note": "Root metadata survives load/import/export"
+  }
+}

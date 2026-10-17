@@ -32,6 +32,7 @@ function App() {
 
   const [devices, setDevices] = useState<Device[]>([]);
   const [deviceConfig, setDeviceConfig] = useState<DeviceConfig[]>([]);
+  const [settingsMetadata, setSettingsMetadata] = useState<Record<string, unknown>>({});
   
   const [activeTab, setActiveTab] = useState<"devices" | "mappings" | "profiles" | "settings">("profiles");
   const [theme, setTheme] = useState<"dark" | "light" | "system">("dark");
@@ -207,6 +208,7 @@ function App() {
       const configToUse = overrideConfig || deviceConfig;
       console.log("Applying Settings...", profiles);
       const profileJson = JSON.stringify({ 
+        ...settingsMetadata,
         profiles: profiles,
         devices: configToUse
       });
@@ -245,6 +247,10 @@ function App() {
 
         const result = await invoke<SettingsLoadReport>('load_settings');
         const parsed = JSON.parse(result.settings_json);
+        const metadata = { ...parsed };
+        delete metadata.profiles;
+        delete metadata.devices;
+        setSettingsMetadata(metadata);
         if (result.recovered) {
           setModalState({
             isOpen: true,
@@ -529,6 +535,10 @@ function App() {
                   const text = await file.text();
                   const migrated: string = await invoke('import_settings', { rawJson: text });
                   const parsed = JSON.parse(migrated);
+                  const metadata = { ...parsed };
+                  delete metadata.profiles;
+                  delete metadata.devices;
+                  setSettingsMetadata(metadata);
                   if (parsed && parsed.profiles && parsed.profiles.length > 0) {
                     setProfiles(parsed.profiles);
                     setActiveProfileIndex(0);
@@ -565,7 +575,7 @@ function App() {
               className="btn" 
               style={{ flex: 1 }}
               onClick={() => {
-                const currentData = JSON.stringify({ profiles, devices: deviceConfig }, null, 2);
+                const currentData = JSON.stringify({ ...settingsMetadata, profiles, devices: deviceConfig }, null, 2);
                 const blob = new Blob([currentData], { type: "application/json" });
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement("a");

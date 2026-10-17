@@ -1,4 +1,5 @@
 mod apply;
+mod migration;
 pub mod config;
 pub mod devices;
 pub mod driver;
@@ -23,8 +24,8 @@ fn load_settings() -> Result<persistence::LoadReport, String> {
 
 #[tauri::command]
 fn import_settings(raw_json: String) -> Result<String, String> {
-    let config = config::parse_or_migrate_settings(&raw_json)?;
-    let serialized = serde_json::to_string_pretty(&config)
+    let document = config::normalize_settings_json(&raw_json)?;
+    let serialized = serde_json::to_string_pretty(&document)
         .map_err(|e| format!("Failed to serialize migrated settings: {}", e))?;
     Ok(serialized)
 }

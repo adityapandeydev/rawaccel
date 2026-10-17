@@ -20,120 +20,6 @@ pub fn get_appdata_settings_path() -> Option<PathBuf> {
     None
 }
 
-fn parse_vec2(val: Option<&serde_json::Value>, default_x: f64, default_y: f64) -> AppVec2D {
-    if let Some(v) = val {
-        let x = v.get("x").and_then(|n| n.as_f64()).unwrap_or(default_x);
-        let y = v.get("y").and_then(|n| n.as_f64()).unwrap_or(default_y);
-        AppVec2D { x, y }
-    } else {
-        AppVec2D { x: default_x, y: default_y }
-    }
-}
-
-fn parse_accel_args(val: Option<&serde_json::Value>) -> AppAccelArgs {
-    let mut args = AppAccelArgs::default();
-    if let Some(v) = val {
-        if let Some(m) = v.get("mode").and_then(|m| m.as_str()) {
-            args.mode = if m == "lut" { "lookup".to_string() } else { m.to_string() };
-        }
-
-        if let Some(gain) = v.get("Gain / Velocity").or_else(|| v.get("gain")).and_then(|g| g.as_bool()) {
-            args.gain = gain;
-        }
-
-        if let Some(n) = v.get("inputOffset").or_else(|| v.get("input_offset")).and_then(|n| n.as_f64()) {
-            args.input_offset = n;
-        }
-        if let Some(n) = v.get("outputOffset").or_else(|| v.get("output_offset")).and_then(|n| n.as_f64()) {
-            args.output_offset = n;
-        }
-        if let Some(n) = v.get("acceleration").and_then(|n| n.as_f64()) {
-            args.acceleration = n;
-        }
-        if let Some(n) = v.get("decayRate").or_else(|| v.get("decay_rate")).and_then(|n| n.as_f64()) {
-            args.decay_rate = n;
-        }
-        if let Some(n) = v.get("gamma").and_then(|n| n.as_f64()) {
-            args.gamma = n;
-        }
-        if let Some(n) = v.get("motivity").and_then(|n| n.as_f64()) {
-            args.motivity = n;
-        }
-        if let Some(n) = v.get("exponentClassic").or_else(|| v.get("exponent_classic")).and_then(|n| n.as_f64()) {
-            args.exponent_classic = n;
-        }
-        if let Some(n) = v.get("scale").and_then(|n| n.as_f64()) {
-            args.scale = n;
-        }
-        if let Some(n) = v.get("exponentPower").or_else(|| v.get("exponent_power")).and_then(|n| n.as_f64()) {
-            args.exponent_power = n;
-        }
-        if let Some(n) = v.get("limit").and_then(|n| n.as_f64()) {
-            args.limit = n;
-        }
-        if let Some(n) = v.get("syncSpeed").or_else(|| v.get("sync_speed")).and_then(|n| n.as_f64()) {
-            args.sync_speed = n;
-        }
-        if let Some(n) = v.get("smooth").and_then(|n| n.as_f64()) {
-            args.smooth = n;
-        }
-
-        args.cap = parse_vec2(v.get("Cap / Jump").or_else(|| v.get("cap")), 0.0, 0.0);
-
-        if let Some(cm) = v.get("Cap mode").or_else(|| v.get("capMode")).or_else(|| v.get("cap_mode")).and_then(|s| s.as_str()) {
-            args.cap_mode = match cm {
-                "in_out" | "io" => "io".to_string(),
-                "input" | "in" => "in".to_string(),
-                "output" | "out" => "out".to_string(),
-                other => other.to_string(),
-            };
-        }
-
-        // Parse legacy LUT data: flat array [x1, y1, x2, y2, ...]
-        if let Some(arr) = v.get("data").and_then(|d| d.as_array()) {
-            let mut pts = Vec::new();
-            let mut i = 0;
-            while i + 1 < arr.len() {
-                if let (Some(x), Some(y)) = (arr[i].as_f64(), arr[i + 1].as_f64()) {
-                    pts.push(AppVec2D { x, y });
-                }
-                i += 2;
-            }
-            if pts.len() >= 2 {
-                args.lookup_table = pts;
-            }
-        }
-    }
-    args
-}
-
-fn parse_speed_args(val: Option<&serde_json::Value>) -> AppSpeedArgs {
-    let mut args = AppSpeedArgs::default();
-    if let Some(v) = val {
-        if let Some(whole) = v.get("Whole/combined accel (set false for 'by component' mode)")
-            .or_else(|| v.get("combineMagnitudes"))
-            .or_else(|| v.get("whole"))
-            .and_then(|b| b.as_bool())
-        {
-            args.whole = whole;
-        }
-
-        if let Some(n) = v.get("lpNorm").or_else(|| v.get("lp_norm")).and_then(|n| n.as_f64()) {
-            args.lp_norm = n;
-        }
-        if let Some(n) = v.get("inputSmoothHalflife").or_else(|| v.get("input_speed_smooth_halflife")).and_then(|n| n.as_f64()) {
-            args.input_speed_smooth_halflife = n;
-        }
-        if let Some(n) = v.get("scaleSmoothHalflife").or_else(|| v.get("scale_smooth_halflife")).and_then(|n| n.as_f64()) {
-            args.scale_smooth_halflife = n;
-        }
-        if let Some(n) = v.get("outputSmoothHalflife").or_else(|| v.get("output_speed_smooth_halflife")).and_then(|n| n.as_f64()) {
-            args.output_speed_smooth_halflife = n;
-        }
-    }
-    args
-}
-
 #[derive(Debug, PartialEq)]
 enum SettingsFormat {
     Modern,
@@ -168,146 +54,25 @@ fn detect_settings_format(value: &serde_json::Value) -> Result<SettingsFormat, S
     Ok(if legacy { SettingsFormat::Legacy } else { SettingsFormat::Modern })
 }
 
-/// Select the format by its keys, never by whether validation happens to pass.
-pub fn parse_or_migrate_settings(raw_json: &str) -> Result<AppConfig, String> {
-    let val: serde_json::Value = serde_json::from_str(raw_json)
-        .map_err(|e| format!("Invalid JSON: {}", e))?;
-    if detect_settings_format(&val)? == SettingsFormat::Modern {
-        let config: AppConfig = serde_json::from_value(val)
-            .map_err(|error| format!("Invalid modern settings: {error}"))?;
-        config.validate()?;
-        return Ok(config);
+/// Normalize recognized aliases in memory while retaining all JSON metadata.
+pub fn normalize_settings_json(raw_json: &str) -> Result<serde_json::Value, String> {
+    let mut value: serde_json::Value = serde_json::from_str(raw_json)
+        .map_err(|error| format!("Invalid JSON: {error}"))?;
+    let format = detect_settings_format(&value)?;
+    if format == SettingsFormat::Legacy {
+        value = crate::migration::migrate(value)?;
     }
-
-    if let Some(profiles_val) = val.get("profiles").and_then(|p| p.as_array()) {
-        let mut modern_profiles = Vec::new();
-
-        for (idx, p_val) in profiles_val.iter().enumerate() {
-            let name = p_val.get("name")
-                .and_then(|n| n.as_str())
-                .unwrap_or(&format!("Profile {}", idx + 1))
-                .to_string();
-
-            let domain_xy = parse_vec2(p_val.get("domainXY").or_else(|| p_val.get("domain_weights")), 1.0, 1.0);
-            let range_xy = parse_vec2(p_val.get("rangeXY").or_else(|| p_val.get("range_weights")), 1.0, 1.0);
-
-            let accel_x = parse_accel_args(p_val.get("argsX").or_else(|| p_val.get("accel_x")));
-            let accel_y = parse_accel_args(p_val.get("argsY").or_else(|| p_val.get("accel_y")));
-
-            let speed_processor_args = parse_speed_args(p_val.get("inputSpeedArgs").or_else(|| p_val.get("speed_processor_args")));
-
-            let output_dpi = p_val.get("Output DPI")
-                .or_else(|| p_val.get("outputDPI"))
-                .or_else(|| p_val.get("output_dpi"))
-                .and_then(|v| v.as_f64())
-                .unwrap_or(1600.0);
-
-            let yx_output_dpi_ratio = p_val.get("Y/X output DPI ratio (vertical sens multiplier)")
-                .or_else(|| p_val.get("yxOutputDPIRatio"))
-                .or_else(|| p_val.get("yx_output_dpi_ratio"))
-                .and_then(|v| v.as_f64())
-                .unwrap_or(1.0);
-
-            let lr_output_dpi_ratio = p_val.get("L/R output DPI ratio (left sens multiplier)")
-                .or_else(|| p_val.get("lrOutputDPIRatio"))
-                .or_else(|| p_val.get("lr_output_dpi_ratio"))
-                .and_then(|v| v.as_f64())
-                .unwrap_or(1.0);
-
-            let ud_output_dpi_ratio = p_val.get("U/D output DPI ratio (up sens multiplier)")
-                .or_else(|| p_val.get("udOutputDPIRatio"))
-                .or_else(|| p_val.get("ud_output_dpi_ratio"))
-                .and_then(|v| v.as_f64())
-                .unwrap_or(1.0);
-
-            let degrees_rotation = p_val.get("Degrees of rotation")
-                .or_else(|| p_val.get("rotation"))
-                .or_else(|| p_val.get("degrees_rotation"))
-                .and_then(|v| v.as_f64())
-                .unwrap_or(0.0);
-
-            let degrees_snap = p_val.get("Degrees of angle snapping")
-                .or_else(|| p_val.get("snap"))
-                .or_else(|| p_val.get("degrees_snap"))
-                .and_then(|v| v.as_f64())
-                .unwrap_or(0.0);
-
-            let speed_max = p_val.get("Input Speed Cap")
-                .or_else(|| p_val.get("maximumSpeed"))
-                .or_else(|| p_val.get("speed_max"))
-                .and_then(|v| v.as_f64())
-                .unwrap_or(0.0);
-
-            modern_profiles.push(AppProfile {
-                id: format!("profile-{}", idx + 1),
-                name,
-                domain_weights: domain_xy,
-                range_weights: range_xy,
-                accel_x,
-                accel_y,
-                speed_processor_args,
-                output_dpi,
-                yx_output_dpi_ratio,
-                lr_output_dpi_ratio,
-                ud_output_dpi_ratio,
-                degrees_rotation,
-                degrees_snap,
-                speed_min: 0.0,
-                speed_max,
-            });
-        }
-
-        let mut modern_devices = Vec::new();
-        if let Some(devices_val) = val.get("devices").and_then(|d| d.as_array()) {
-            for dev_val in devices_val {
-                if let Some(id) = dev_val.get("id").and_then(|i| i.as_str()) {
-                    let profile_id = dev_val.get("profile")
-                        .or_else(|| dev_val.get("profile_id"))
-                        .and_then(|p| p.as_str())
-                        .map(|s| s.to_string());
-
-                    let cfg = dev_val.get("config").unwrap_or(dev_val);
-                    let disable = cfg.get("disable").and_then(|v| v.as_bool()).unwrap_or(false);
-                    let dpi = cfg.get("DPI (normalizes input speed unit: counts/ms -> in/s)")
-                        .or_else(|| cfg.get("dpi"))
-                        .and_then(|v| v.as_i64())
-                        .unwrap_or(0)
-                        .max(0) as u32;
-                    let polling_rate = cfg.get("Polling rate Hz (keep at 0 for automatic adjustment)")
-                        .or_else(|| cfg.get("pollingRate"))
-                        .or_else(|| cfg.get("polling_rate"))
-                        .and_then(|v| v.as_i64())
-                        .unwrap_or(0)
-                        .max(0) as u32;
-
-                    modern_devices.push(AppDeviceConfig {
-                        id: id.to_string(),
-                        profile_id,
-                        disable,
-                        set_extra_info: false,
-                        poll_time_lock: false,
-                        dpi,
-                        polling_rate,
-                        clamp_min: 0.0,
-                        clamp_max: 0.0,
-                    });
-                }
-            }
-        }
-
-        if !modern_profiles.is_empty() {
-            let config = AppConfig {
-                profiles: modern_profiles,
-                devices: modern_devices,
-            };
-            config.validate()?;
-            return Ok(config);
-        }
-    }
-
-    Err("Could not parse configuration. Ensure it is a valid Raw Accel JSON file.".to_string())
+    let config: AppConfig = serde_json::from_value(value.clone())
+        .map_err(|error| format!("Invalid {} settings: {error}", if format == SettingsFormat::Modern { "modern" } else { "legacy" }))?;
+    config.validate()?;
+    Ok(value)
 }
 
+/// Driver-facing models contain only supported fields; the document retains metadata.
+pub fn parse_or_migrate_settings(raw_json: &str) -> Result<AppConfig, String> {
+    serde_json::from_value(normalize_settings_json(raw_json)?)
+        .map_err(|error| error.to_string())
+}
 /// Loads and validates candidates without rewriting originals or normalizing files.
 pub fn load_settings_with_report() -> Result<crate::persistence::LoadReport, String> {
     crate::persistence::load(&settings_paths(), parse_settings_for_load)
@@ -326,11 +91,11 @@ pub(crate) fn parse_settings_for_load(raw: &str) -> Result<String, String> {
     let value: serde_json::Value = serde_json::from_str(raw)
         .map_err(|error| format!("Invalid JSON: {error}"))?;
     let format = detect_settings_format(&value)?;
-    let config = parse_or_migrate_settings(raw)?;
+    let document = normalize_settings_json(raw)?;
     match format {
         SettingsFormat::Modern => Ok(raw.to_string()),
         // Migration is in memory only; explicit saving retains the original.
-        SettingsFormat::Legacy => serde_json::to_string_pretty(&config)
+        SettingsFormat::Legacy => serde_json::to_string_pretty(&document)
             .map_err(|error| error.to_string()),
     }
 }
@@ -356,6 +121,8 @@ pub struct AppConfig {
     pub profiles: Vec<AppProfile>,
     #[serde(default)]
     pub devices: Vec<AppDeviceConfig>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub default_device_config: Option<AppDeviceDefaults>,
 }
 
 impl AppConfig {
@@ -364,6 +131,14 @@ impl AppConfig {
     pub fn validate(&self) -> Result<(), String> {
         if self.profiles.is_empty() {
             return Err("At least one profile is required".to_string());
+        }
+        if let Some(defaults) = &self.default_device_config {
+            let native = defaults.to_native();
+            if defaults.dpi > i32::MAX as u32 || defaults.polling_rate > i32::MAX as u32
+                || !defaults.clamp_min.is_finite() || !defaults.clamp_max.is_finite()
+                || native.clamp.min <= 0.0 || native.clamp.max < native.clamp.min {
+                return Err("Invalid default device DPI, polling rate, or time clamps".to_string());
+            }
         }
 
         let mut profile_names = std::collections::HashSet::new();
@@ -538,6 +313,36 @@ fn validate_accel_args(
     Ok(())
 }
 
+/// Defaults for unmapped devices, separate from per-device identity and mapping.
+#[derive(Serialize, Deserialize, Clone, Debug, Default)]
+#[serde(default)]
+pub struct AppDeviceDefaults {
+    pub disable: bool,
+    pub set_extra_info: bool,
+    pub poll_time_lock: bool,
+    pub dpi: u32,
+    pub polling_rate: u32,
+    pub clamp_min: f64,
+    pub clamp_max: f64,
+}
+
+impl AppDeviceDefaults {
+    pub fn to_native(&self) -> models::device_config {
+        let defaults = models::time_clamp::default();
+        models::device_config {
+            disable: self.disable,
+            set_extra_info: self.set_extra_info,
+            poll_time_lock: self.poll_time_lock,
+            dpi: self.dpi as i32,
+            polling_rate: self.polling_rate as i32,
+            clamp: models::time_clamp {
+                min: if self.clamp_min == 0.0 { defaults.min } else { self.clamp_min },
+                max: if self.clamp_max == 0.0 { defaults.max } else { self.clamp_max },
+            },
+        }
+    }
+}
+
 #[derive(Serialize, Deserialize, Clone, Debug, Default)]
 pub struct AppDeviceConfig {
     pub id: String,
@@ -661,6 +466,10 @@ pub struct AppAccelArgs {
     pub cap_mode: String,
     #[serde(default)]
     pub lookup_table: Vec<AppVec2D>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub lookup_csv_backup: Option<Vec<AppVec2D>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub lookup_csv_backup_gain: Option<bool>,
 }
 
 impl AppProfile {
@@ -846,6 +655,63 @@ mod tests {
     use super::*;
 
     #[test]
+    fn complete_modern_document_round_trip_preserves_tiered_axes_and_metadata() {
+        let raw = include_str!("../tests/fixtures/settings/modern-complete.json");
+        let original: serde_json::Value = serde_json::from_str(raw).unwrap();
+        let document = normalize_settings_json(raw).unwrap();
+        assert_eq!(document, original);
+        let config = parse_or_migrate_settings(raw).unwrap();
+        assert_eq!(config.profiles[0].accel_x.t_type, "linear");
+        assert_eq!(config.profiles[1].accel_x.t_type, "natural");
+        assert!(!config.profiles[0].speed_processor_args.whole);
+        let args = &config.profiles[0].accel_y;
+        assert_eq!(args.lookup_csv_backup.as_ref().unwrap()[0].y, 3.0);
+        assert_eq!(args.lookup_csv_backup_gain, Some(false));
+        assert_eq!(args.to_native().data[..4], [1.0, 2.0, 8.0, 12.0]);
+        assert_eq!(normalize_settings_json(&document.to_string()).unwrap(), original);
+    }
+
+    #[test]
+    fn actual_wrapper_labels_preserve_device_options_and_independent_axes() {
+        let raw = include_str!("../tests/fixtures/settings/legacy-wrapper.json");
+        let document = normalize_settings_json(raw).unwrap();
+        let config = parse_or_migrate_settings(raw).unwrap();
+        let profile = &config.profiles[0];
+        assert_eq!(profile.id, "keep-legacy-id");
+        assert_eq!(profile.accel_x.mode, "natural");
+        assert_eq!(profile.accel_x.input_offset, 3.0);
+        assert_eq!(profile.accel_y.mode, "lookup");
+        assert_eq!(profile.accel_y.to_native().data[..4], [1.0, 2.0, 5.0, 3.0]);
+        assert_eq!(profile.speed_processor_args.input_speed_smooth_halflife, 2.0);
+        assert_eq!(profile.speed_processor_args.scale_smooth_halflife, 4.0);
+        assert_eq!(profile.speed_processor_args.output_speed_smooth_halflife, 6.0);
+        let device = &config.devices[0];
+        assert!(device.disable && device.set_extra_info && device.poll_time_lock);
+        assert_eq!(device.clamp_min, 0.125);
+        assert_eq!(device.polling_rate, 1000);
+        assert_eq!(device.profile_id.as_deref(), Some("Legacy Natural"));
+        let defaults = config.default_device_config.unwrap().to_native();
+        assert_eq!(defaults.dpi, 800);
+        assert!(defaults.set_extra_info && defaults.poll_time_lock);
+        assert_eq!(defaults.clamp.max, 90.0);
+        assert_eq!(document["editor_metadata"]["note"], "Preserved legacy extension");
+        assert_eq!(normalize_settings_json(&document.to_string()).unwrap(), document);
+    }
+
+    #[test]
+    fn legacy_wrong_types_and_incomplete_lut_pairs_are_rejected() {
+        let original: serde_json::Value = serde_json::from_str(include_str!("../tests/fixtures/settings/legacy-wrapper.json")).unwrap();
+        for (field, value) in [("data", serde_json::json!([1,2,3])), ("data", serde_json::json!([1,"bad",3,4]))] {
+            let mut invalid = original.clone();
+            invalid["profiles"][0]["Vertical accel parameters"][field] = value;
+            assert!(normalize_settings_json(&invalid.to_string()).is_err());
+        }
+        let mut invalid = original;
+        invalid["devices"][0]["config"]["minimumTime"] = serde_json::json!("bad");
+        assert!(normalize_settings_json(&invalid.to_string()).is_err());
+    }
+
+    #[test]
     fn invalid_modern_import_returns_validation_error_instead_of_migrating() {
         assert_eq!(
             parse_or_migrate_settings("{\"profiles\":[],\"devices\":[]}").unwrap_err(),
@@ -858,6 +724,8 @@ mod tests {
         let config = AppConfig {
             profiles: vec![AppProfile { name: "Modern".to_string(), ..Default::default() }],
             devices: vec![],
+
+            default_device_config: None,
         };
         let mut value = serde_json::to_value(config).unwrap();
         value["profiles"][0]["accel_x"]["input_offset"] = serde_json::json!("bad number");
@@ -898,6 +766,8 @@ mod tests {
                 ..Default::default()
             }],
             devices: vec![],
+
+            default_device_config: None,
         };
         let mut value = serde_json::to_value(config).unwrap();
         value["profiles"][0]["accel_x"]["lookup_csv_backup"] =
@@ -937,6 +807,8 @@ mod tests {
         let config = AppConfig {
             profiles: vec![],
             devices: vec![],
+
+            default_device_config: None,
         };
         assert!(config.validate().is_err());
     }
@@ -955,6 +827,8 @@ mod tests {
                 },
             ],
             devices: vec![],
+
+            default_device_config: None,
         };
         assert!(config.validate().is_err());
     }
@@ -971,6 +845,7 @@ mod tests {
                 profile_id: Some("NonExistent".to_string()),
                 ..Default::default()
             }],
+            default_device_config: None,
         };
         assert!(config.validate().is_err());
     }
@@ -1006,6 +881,7 @@ mod tests {
                     ..Default::default()
                 },
             ],
+            default_device_config: None,
         };
         assert!(config.validate().is_ok());
     }
@@ -1113,6 +989,8 @@ mod tests {
                 ..Default::default()
             }],
             devices: vec![],
+
+            default_device_config: None,
         };
         assert!(config.validate().is_err());
     }
@@ -1137,6 +1015,8 @@ mod tests {
                 ..Default::default()
             }],
             devices: vec![],
+
+            default_device_config: None,
         };
         assert!(config.validate().is_err());
     }
@@ -1161,6 +1041,8 @@ mod tests {
                 ..Default::default()
             }],
             devices: vec![],
+
+            default_device_config: None,
         };
         assert!(config.validate().is_ok());
     }
