@@ -1,0 +1,61 @@
+{
+  "schema_version": 1,
+  "accel_args": {
+    "mode": "noaccel",
+    "gain": true,
+    "input_offset": 0,
+    "output_offset": 0,
+    "acceleration": 0.005,
+    "decay_rate": 0.1,
+    "gamma": 1,
+    "motivity": 1.5,
+    "exponent_classic": 2,
+    "scale": 1,
+    "exponent_power": 0.05,
+    "limit": 1.5,
+    "sync_speed": 5,
+    "smooth": 0.5,
+    "t_type": "linear",
+    "tiered_multiplier1": 1,
+    "tiered_input_offset1": 0,
+    "tiered_multiplier2": 1.5,
+    "tiered_transition1": 10,
+    "tiered_input_offset2": 15,
+    "tiered_multiplier3": 2,
+    "tiered_transition2": 25,
+    "tiered_decay_rate1": 0.1,
+    "tiered_decay_rate2": 0.1,
+    "cap": {
+      "x": 15,
+      "y": 1.5
+    },
+    "cap_mode": "out",
+    "lookup_table": []
+  },
+  "speed_args": {
+    "whole": true,
+    "lp_norm": 2,
+    "input_speed_smooth_halflife": 0,
+    "scale_smooth_halflife": 0,
+    "output_speed_smooth_halflife": 0
+  },
+  "profile": {
+    "name": "Default Profile",
+    "domain_weights": {
+      "x": 1,
+      "y": 1
+    },
+    "range_weights": {
+      "x": 1,
+      "y": 1
+    },
+    "output_dpi": 1000,
+    "yx_output_dpi_ratio": 1,
+    "lr_output_dpi_ratio": 1,
+    "ud_output_dpi_ratio": 1,
+    "degrees_rotation": 0,
+    "degrees_snap": 0,
+    "speed_min": 0,
+    "speed_max": 0
+  }
+}

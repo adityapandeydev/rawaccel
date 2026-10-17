@@ -91,19 +91,9 @@ fn accel(value: &mut Value) -> Result<(), String> {
             map.insert("lookup_table".to_string(), table);
         }
     }
-    // Defaults from the C++ arguments, only for omitted legacy properties.
     fill(
         map,
-        json!({
-            "mode":"noaccel", "gain":true, "input_offset":0.0, "output_offset":0.0,
-            "acceleration":0.005, "decay_rate":0.1, "gamma":1.0, "motivity":1.5,
-            "exponent_classic":2.0, "scale":1.0, "exponent_power":0.05,
-            "limit":1.5, "sync_speed":5.0, "smooth":0.5, "cap":{"x":15.0,"y":1.5},
-            "cap_mode":"out", "t_type":"linear", "tiered_multiplier1":1.0,
-            "tiered_input_offset1":0.0, "tiered_multiplier2":1.5, "tiered_transition1":10.0,
-            "tiered_input_offset2":15.0, "tiered_multiplier3":2.0, "tiered_transition2":25.0,
-            "tiered_decay_rate1":0.1, "tiered_decay_rate2":0.1, "lookup_table":[]
-        }),
+        crate::settings_defaults::document()["accel_args"].clone(),
     );
     Ok(())
 }
@@ -145,8 +135,7 @@ fn speed(value: &mut Value) -> Result<(), String> {
     }
     fill(
         map,
-        json!({"whole":true,"lp_norm":2.0,"input_speed_smooth_halflife":0.0,
-        "scale_smooth_halflife":0.0,"output_speed_smooth_halflife":0.0}),
+        crate::settings_defaults::document()["speed_args"].clone(),
     );
     Ok(())
 }
@@ -252,16 +241,9 @@ pub(crate) fn migrate(mut value: Value) -> Result<Value, String> {
                 index + 1
             ));
         }
-        fill(
-            map,
-            json!({
-                "id":format!("profile-{}", index + 1), "name":format!("Profile {}",index + 1),
-                "domain_weights":{"x":1.0,"y":1.0}, "range_weights":{"x":1.0,"y":1.0},
-                "accel_y":{}, "speed_processor_args":{}, "output_dpi":1000.0,
-                "yx_output_dpi_ratio":1.0,"lr_output_dpi_ratio":1.0,"ud_output_dpi_ratio":1.0,
-                "degrees_rotation":0.0,"degrees_snap":0.0,"speed_min":0.0,"speed_max":0.0
-            }),
-        );
+        let mut defaults = crate::settings_defaults::profile();
+        defaults["name"] = json!(format!("Profile {}", index + 1));
+        fill(map, defaults);
         accel(map.get_mut("accel_x").unwrap())?;
         accel(map.get_mut("accel_y").unwrap())?;
         speed(map.get_mut("speed_processor_args").unwrap())?;

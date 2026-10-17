@@ -1,4 +1,6 @@
-export const SETTINGS_SCHEMA_VERSION = 1;
+import settingsDefaults from "./settings-defaults.json";
+
+export const SETTINGS_SCHEMA_VERSION = settingsDefaults.schema_version;
 
 export interface SettingsApplyReport {
   applied: boolean;
@@ -30,6 +32,7 @@ export interface DeviceConfig {
   polling_rate: number;
   clamp_min: number;
   clamp_max: number;
+  // Stores Profile.name for the driver; Profile.id is separate editor identity.
   profile_id: string | null;
 }
 
@@ -103,62 +106,15 @@ export interface Profile {
 
 // ── Default Generators ──────────────────────────────────────────────────
 
-export const defaultAccelArgs = (): AccelArgs => ({
-  mode: "noaccel",
-  gain: true,
-  input_offset: 0,
-  output_offset: 0,
-  acceleration: 0,
-  decay_rate: 0.1,
-  gamma: 1,
-  motivity: 1.5,
-  exponent_classic: 2,
-  scale: 1,
-  exponent_power: 2,
-  limit: 2,
-  sync_speed: 10,
-  smooth: 0,
-  t_type: "linear",
-  tiered_multiplier1: 1.0,
-  tiered_input_offset1: 0.0,
-  tiered_multiplier2: 1.5,
-  tiered_transition1: 10.0,
-  tiered_input_offset2: 15.0,
-  tiered_multiplier3: 2.0,
-  tiered_transition2: 25.0,
-  tiered_decay_rate1: 0.1,
-  tiered_decay_rate2: 0.1,
-  cap: { x: 15, y: 1.5 },
-  cap_mode: "out",
-  lookup_table: []
-});
+export const defaultAccelArgs = (): AccelArgs => structuredClone(settingsDefaults.accel_args) as AccelArgs;
 
-export const defaultSpeedArgs = (): SpeedArgs => ({
-  whole: true,
-  lp_norm: 2.0,
-  input_speed_smooth_halflife: 0,
-  scale_smooth_halflife: 0,
-  output_speed_smooth_halflife: 0
-});
+export const defaultSpeedArgs = (): SpeedArgs => structuredClone(settingsDefaults.speed_args);
 
-export const defaultProfile = (name: string = "Default Profile"): Profile => ({
+export const defaultProfile = (name: string = settingsDefaults.profile.name): Profile => ({
+  ...structuredClone(settingsDefaults.profile),
   id: crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(),
   name,
-  domain_weights: { x: 1, y: 1 },
-  range_weights: { x: 1, y: 1 },
   accel_x: defaultAccelArgs(),
   accel_y: defaultAccelArgs(),
   speed_processor_args: defaultSpeedArgs(),
-  output_dpi: 1000,
-  yx_output_dpi_ratio: 1,
-  lr_output_dpi_ratio: 1,
-  ud_output_dpi_ratio: 1,
-  degrees_rotation: 0,
-  degrees_snap: 0,
-  speed_min: 0,
-  speed_max: 0
 });
-
-
-
-

@@ -1,5 +1,6 @@
 mod apply;
 mod migration;
+mod settings_defaults;
 pub mod config;
 pub mod devices;
 pub mod driver;

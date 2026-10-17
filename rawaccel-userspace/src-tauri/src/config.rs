@@ -77,6 +77,8 @@ pub fn normalize_settings_json(raw_json: &str) -> Result<serde_json::Value, Stri
     if format == SettingsFormat::Legacy {
         value = crate::migration::migrate(value)?;
     }
+    crate::settings_defaults::complete_profiles(&mut value)?;
+    value.as_object_mut().unwrap().entry("devices").or_insert_with(|| serde_json::json!([]));
     let config: AppConfig = serde_json::from_value(value.clone())
         .map_err(|error| format!("Invalid {} settings: {error}", if format == SettingsFormat::Modern { "modern" } else { "legacy" }))?;
     config.validate()?;
@@ -109,7 +111,7 @@ pub(crate) fn parse_settings_for_load(raw: &str) -> Result<String, String> {
     let format = detect_settings_format(&value)?;
     let document = normalize_settings_json(raw)?;
     match format {
-        SettingsFormat::Modern if settings_schema_version(&value)? == SETTINGS_SCHEMA_VERSION => Ok(raw.to_string()),
+        SettingsFormat::Modern if value == document => Ok(raw.to_string()),
         // Migration is in memory only; explicit saving retains the original.
         _ => serde_json::to_string_pretty(&document)
             .map_err(|error| error.to_string()),
@@ -165,6 +167,18 @@ impl AppConfig {
             }
             if !profile_names.insert(trimmed.to_lowercase()) {
                 return Err(format!("Duplicate profile name '{}'", profile.name));
+            }
+
+            for (axis, args) in [("X", &profile.accel_x), ("Y", &profile.accel_y)] {
+                if !["noaccel", "linear", "classic", "jump", "natural", "synchronous", "power", "lookup", "tiered"].contains(&args.mode.as_str()) {
+                    return Err(format!("Profile '{}' {axis}: unknown acceleration mode '{}'", profile.name, args.mode));
+                }
+                if !["in", "out", "io"].contains(&args.cap_mode.as_str()) {
+                    return Err(format!("Profile '{}' {axis}: unknown cap mode '{}'", profile.name, args.cap_mode));
+                }
+                if !["linear", "natural"].contains(&args.t_type.as_str()) {
+                    return Err(format!("Profile '{}' {axis}: unknown Tiered subtype '{}'", profile.name, args.t_type));
+                }
             }
 
             validate_accel_args(&profile.name, "X", &profile.accel_x)?;
@@ -362,6 +376,7 @@ impl AppDeviceDefaults {
 #[derive(Serialize, Deserialize, Clone, Debug, Default)]
 pub struct AppDeviceConfig {
     pub id: String,
+    /// Driver profile name, not AppProfile.id; names are the wire-level mapping key.
     pub profile_id: Option<String>,
     #[serde(default)]
     pub disable: bool,
@@ -383,7 +398,7 @@ fn default_poll_time_lock() -> bool {
     false
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, Default)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct AppProfile {
     #[serde(default)]
     pub id: String,
@@ -412,7 +427,7 @@ pub struct AppVec2D {
     pub y: f64,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, Default)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct AppSpeedArgs {
     #[serde(default)]
     pub whole: bool,
@@ -426,7 +441,7 @@ pub struct AppSpeedArgs {
     pub output_speed_smooth_halflife: f64,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, Default)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct AppAccelArgs {
     #[serde(default)]
     pub mode: String,
@@ -486,6 +501,27 @@ pub struct AppAccelArgs {
     pub lookup_csv_backup: Option<Vec<AppVec2D>>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub lookup_csv_backup_gain: Option<bool>,
+}
+
+impl Default for AppProfile {
+    fn default() -> Self {
+        serde_json::from_value(crate::settings_defaults::profile())
+            .expect("Checked-in profile defaults must match the model")
+    }
+}
+
+impl Default for AppSpeedArgs {
+    fn default() -> Self {
+        serde_json::from_value(crate::settings_defaults::document()["speed_args"].clone())
+            .expect("Checked-in speed defaults must match the model")
+    }
+}
+
+impl Default for AppAccelArgs {
+    fn default() -> Self {
+        serde_json::from_value(crate::settings_defaults::document()["accel_args"].clone())
+            .expect("Checked-in acceleration defaults must match the model")
+    }
 }
 
 impl AppProfile {
@@ -671,6 +707,86 @@ mod tests {
     use super::*;
 
     #[test]
+    fn shared_defaults_match_native_acceleration_and_speed_defaults() {
+        assert_eq!(crate::settings_defaults::document()["schema_version"], SETTINGS_SCHEMA_VERSION);
+        let actual = AppAccelArgs::default().to_native();
+        let expected = models::accel_args::default();
+        assert_eq!(actual.mode, expected.mode);
+        assert_eq!(actual.gain, expected.gain);
+        assert_eq!(actual.t_type, expected.t_type);
+        assert_eq!(actual.cap_mode, expected.cap_mode);
+        assert_eq!(actual.data, expected.data);
+        assert_eq!(actual.length, expected.length);
+        let values = |args: &models::accel_args| [
+            args.input_offset, args.output_offset, args.acceleration, args.decay_rate,
+            args.gamma, args.motivity, args.exponent_classic, args.scale,
+            args.exponent_power, args.limit, args.sync_speed, args.smooth,
+            args.tiered_multiplier1, args.tiered_input_offset1, args.tiered_multiplier2,
+            args.tiered_transition1, args.tiered_input_offset2, args.tiered_multiplier3,
+            args.tiered_transition2, args.tiered_decay_rate1, args.tiered_decay_rate2,
+            args.cap.x, args.cap.y,
+        ];
+        assert_eq!(values(&actual), values(&expected));
+        let speed = AppSpeedArgs::default();
+        let native_speed = models::speed_args::default();
+        assert_eq!(speed.whole, native_speed.whole);
+        assert_eq!([speed.lp_norm, speed.input_speed_smooth_halflife, speed.scale_smooth_halflife, speed.output_speed_smooth_halflife],
+            [native_speed.lp_norm, native_speed.input_speed_smooth_halflife, native_speed.scale_smooth_halflife, native_speed.output_speed_smooth_halflife]);
+    }
+
+    #[test]
+    fn omitted_modern_fields_receive_the_same_canonical_defaults() {
+        let value = normalize_settings_json(r#"{"profiles":[{"name":"Partial","accel_x":{"mode":"classic"}}]}"#).unwrap();
+        let config: AppConfig = serde_json::from_value(value.clone()).unwrap();
+        assert_eq!(config.profiles[0].accel_x.acceleration, 0.005);
+        assert_eq!(config.profiles[0].accel_y.mode, "noaccel");
+        assert!(config.profiles[0].speed_processor_args.whole);
+        assert_eq!(config.profiles[0].output_dpi, 1000.0);
+        assert_eq!(normalize_settings_json(&value.to_string()).unwrap(), value);
+    }
+
+    #[test]
+    fn explicit_zero_false_and_existing_ids_are_not_replaced_by_defaults() {
+        let raw = r#"{"profiles":[{"name":"Explicit","id":"keep-me","accel_x":{"mode":"noaccel","gain":false,"acceleration":0,"smooth":0},"speed_processor_args":{"whole":false}}]}"#;
+        let value = normalize_settings_json(raw).unwrap();
+        assert_eq!(value["profiles"][0]["id"], "keep-me");
+        assert_eq!(value["profiles"][0]["accel_x"]["acceleration"], 0);
+        assert_eq!(value["profiles"][0]["accel_x"]["smooth"], 0);
+        assert_eq!(value["profiles"][0]["accel_x"]["gain"], false);
+        assert_eq!(value["profiles"][0]["speed_processor_args"]["whole"], false);
+    }
+
+    #[test]
+    fn generated_editor_ids_do_not_collide_or_change_name_based_mappings() {
+        let raw = r#"{"profiles":[{"name":"First","id":"profile-2"},{"name":"Second"}],"devices":[{"id":"mouse","profile_id":"Second"}]}"#;
+        let value = normalize_settings_json(raw).unwrap();
+        assert_eq!(value["profiles"][0]["id"], "profile-2");
+        assert_eq!(value["profiles"][1]["id"], "profile-3");
+        assert_eq!(value["devices"][0]["profile_id"], "Second");
+        assert_eq!(normalize_settings_json(&value.to_string()).unwrap(), value);
+    }
+
+    #[test]
+    fn unknown_selectors_are_rejected_on_both_axes_even_when_combined() {
+        for axis in ["accel_x", "accel_y"] {
+            for field in ["mode", "cap_mode", "t_type"] {
+                let mut value = normalize_settings_json(r#"{"profiles":[{"name":"Selectors"}]}"#).unwrap();
+                value["profiles"][0][axis][field] = serde_json::json!("unsupported");
+                assert!(normalize_settings_json(&value.to_string()).unwrap_err().contains("unknown"));
+            }
+        }
+    }
+
+    #[test]
+    fn defaults_do_not_hide_wrong_types_nulls_or_missing_names() {
+        for raw in [r#"{"profiles":[{}]}"#, r#"{"profiles":[{"name":"Bad","accel_x":null}]}"#,
+            r#"{"profiles":[{"name":"Bad","speed_processor_args":"wrong"}]}"#,
+            r#"{"profiles":[{"name":"Bad","accel_x":{"cap":null}}]}"#] {
+            assert!(normalize_settings_json(raw).is_err(), "Accepted {raw}");
+        }
+    }
+
+    #[test]
     fn unversioned_and_version_zero_documents_upgrade_idempotently() {
         let raw = include_str!("../tests/fixtures/settings/modern-complete.json");
         let expected = normalize_settings_json(raw).unwrap();
@@ -800,6 +916,7 @@ mod tests {
     fn loading_modern_settings_preserves_unknown_editor_metadata_and_format() {
         let config = AppConfig {
             profiles: vec![AppProfile {
+                id: "stable-id".to_string(),
                 name: "Portable".to_string(),
                 ..Default::default()
             }],
