@@ -2,6 +2,20 @@ use crate::models;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
+/// Settings document version, independent of the kernel driver's version/ABI.
+pub const SETTINGS_SCHEMA_VERSION: u64 = 1;
+
+pub(crate) fn settings_schema_version(value: &serde_json::Value) -> Result<u64, String> {
+    let version = match value.get("schema_version") {
+        None => 0, // The original Rust format had no schema marker.
+        Some(value) => value.as_u64().ok_or("schema_version must be a non-negative integer")?,
+    };
+    if version > SETTINGS_SCHEMA_VERSION {
+        return Err(format!("Unsupported settings schema version {version}; this app supports up to {SETTINGS_SCHEMA_VERSION}. The file has not been changed."));
+    }
+    Ok(version)
+}
+
 /// Gets the primary settings path: right next to the running executable.
 pub fn get_local_settings_path() -> PathBuf {
     if let Ok(exe_path) = std::env::current_exe() {
@@ -58,6 +72,7 @@ fn detect_settings_format(value: &serde_json::Value) -> Result<SettingsFormat, S
 pub fn normalize_settings_json(raw_json: &str) -> Result<serde_json::Value, String> {
     let mut value: serde_json::Value = serde_json::from_str(raw_json)
         .map_err(|error| format!("Invalid JSON: {error}"))?;
+    settings_schema_version(&value)?;
     let format = detect_settings_format(&value)?;
     if format == SettingsFormat::Legacy {
         value = crate::migration::migrate(value)?;
@@ -65,6 +80,7 @@ pub fn normalize_settings_json(raw_json: &str) -> Result<serde_json::Value, Stri
     let config: AppConfig = serde_json::from_value(value.clone())
         .map_err(|error| format!("Invalid {} settings: {error}", if format == SettingsFormat::Modern { "modern" } else { "legacy" }))?;
     config.validate()?;
+    value.as_object_mut().unwrap().insert("schema_version".to_string(), serde_json::json!(SETTINGS_SCHEMA_VERSION));
     Ok(value)
 }
 
@@ -93,9 +109,9 @@ pub(crate) fn parse_settings_for_load(raw: &str) -> Result<String, String> {
     let format = detect_settings_format(&value)?;
     let document = normalize_settings_json(raw)?;
     match format {
-        SettingsFormat::Modern => Ok(raw.to_string()),
+        SettingsFormat::Modern if settings_schema_version(&value)? == SETTINGS_SCHEMA_VERSION => Ok(raw.to_string()),
         // Migration is in memory only; explicit saving retains the original.
-        SettingsFormat::Legacy => serde_json::to_string_pretty(&document)
+        _ => serde_json::to_string_pretty(&document)
             .map_err(|error| error.to_string()),
     }
 }
@@ -655,9 +671,31 @@ mod tests {
     use super::*;
 
     #[test]
+    fn unversioned_and_version_zero_documents_upgrade_idempotently() {
+        let raw = include_str!("../tests/fixtures/settings/modern-complete.json");
+        let expected = normalize_settings_json(raw).unwrap();
+        assert_eq!(expected["schema_version"], SETTINGS_SCHEMA_VERSION);
+        let mut zero: serde_json::Value = serde_json::from_str(raw).unwrap();
+        zero["schema_version"] = serde_json::json!(0);
+        assert_eq!(normalize_settings_json(&zero.to_string()).unwrap(), expected);
+        assert_eq!(normalize_settings_json(&expected.to_string()).unwrap(), expected);
+    }
+
+    #[test]
+    fn future_or_malformed_schema_markers_are_rejected() {
+        let raw = include_str!("../tests/fixtures/settings/modern-complete.json");
+        for marker in [serde_json::json!(2), serde_json::json!(-1), serde_json::json!(1.5), serde_json::json!("1"), serde_json::Value::Null] {
+            let mut value: serde_json::Value = serde_json::from_str(raw).unwrap();
+            value["schema_version"] = marker;
+            assert!(normalize_settings_json(&value.to_string()).is_err());
+        }
+    }
+
+    #[test]
     fn complete_modern_document_round_trip_preserves_tiered_axes_and_metadata() {
         let raw = include_str!("../tests/fixtures/settings/modern-complete.json");
-        let original: serde_json::Value = serde_json::from_str(raw).unwrap();
+        let mut original: serde_json::Value = serde_json::from_str(raw).unwrap();
+        original["schema_version"] = serde_json::json!(SETTINGS_SCHEMA_VERSION);
         let document = normalize_settings_json(raw).unwrap();
         assert_eq!(document, original);
         let config = parse_or_migrate_settings(raw).unwrap();
@@ -770,6 +808,7 @@ mod tests {
             default_device_config: None,
         };
         let mut value = serde_json::to_value(config).unwrap();
+        value["schema_version"] = serde_json::json!(SETTINGS_SCHEMA_VERSION);
         value["profiles"][0]["accel_x"]["lookup_csv_backup"] =
             serde_json::json!([{ "x": 1, "y": 2 }, { "x": 3, "y": 4 }]);
         let raw = serde_json::to_string_pretty(&value).unwrap();

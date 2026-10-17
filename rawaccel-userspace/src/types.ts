@@ -1,3 +1,5 @@
+export const SETTINGS_SCHEMA_VERSION = 1;
+
 export interface SettingsApplyReport {
   applied: boolean;
   saved: boolean;
@@ -10,6 +12,7 @@ export interface SettingsLoadReport {
   settings_json: string;
   source: string;
   recovered: boolean;
+  migrated: boolean;
   warnings: string[];
 }
 

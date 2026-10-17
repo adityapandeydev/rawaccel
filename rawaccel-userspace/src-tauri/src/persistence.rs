@@ -22,6 +22,7 @@ pub struct LoadReport {
     pub settings_json: String,
     pub source: String,
     pub recovered: bool,
+    pub migrated: bool,
     pub warnings: Vec<String>,
 }
 
@@ -44,16 +45,38 @@ pub(crate) fn load(
     let mut warnings = Vec::new();
     for (path, is_backup) in candidates {
         let result = match fs::read_to_string(&path) {
-            Ok(raw) => parse(&raw),
+            Ok(raw) => {
+                // A newer schema is not corruption. Falling back to an older
+                // mirror could silently downgrade the user's configuration.
+                if let Ok(value) = serde_json::from_str::<serde_json::Value>(&raw) {
+                    if value
+                        .get("schema_version")
+                        .and_then(serde_json::Value::as_u64)
+                        .is_some_and(|version| version > crate::config::SETTINGS_SCHEMA_VERSION)
+                    {
+                        return Err(format!(
+                            "{}: {}",
+                            path.display(),
+                            crate::config::settings_schema_version(&value).unwrap_err()
+                        ));
+                    }
+                }
+                parse(&raw).map(|settings_json| {
+                    let migrated = serde_json::from_str::<serde_json::Value>(&raw).ok()
+                        != serde_json::from_str::<serde_json::Value>(&settings_json).ok();
+                    (settings_json, migrated)
+                })
+            }
             Err(error) if error.kind() == io::ErrorKind::NotFound => continue,
             Err(error) => Err(error.to_string()),
         };
         match result {
-            Ok(settings_json) => {
+            Ok((settings_json, migrated)) => {
                 return Ok(LoadReport {
                     settings_json,
                     source: path.display().to_string(),
                     recovered: is_backup || !warnings.is_empty(),
+                    migrated,
                     warnings,
                 });
             }
@@ -445,5 +468,46 @@ mod tests {
         let error = load(&paths, parse_test_json).unwrap_err();
         assert!(error.contains("No valid settings"));
         assert!(error.contains("portable.json"));
+    }
+
+    #[test]
+    fn future_schema_blocks_silent_downgrade_to_an_older_mirror() {
+        let dir = TestDirectory::new();
+        let paths = dir.paths();
+        let future = format!(
+            "{{\"schema_version\":{},\"profiles\":[]}}",
+            crate::config::SETTINGS_SCHEMA_VERSION + 1
+        );
+        fs::write(&paths.primary, &future).unwrap();
+        let mirror = paths.mirror.as_ref().unwrap();
+        fs::create_dir_all(mirror.parent().unwrap()).unwrap();
+        fs::write(mirror, valid_settings("old mirror")).unwrap();
+
+        let error = load(&paths, crate::config::parse_settings_for_load).unwrap_err();
+        assert!(error.contains("Unsupported settings schema version"));
+        assert_eq!(fs::read_to_string(&paths.primary).unwrap(), future);
+    }
+
+    #[test]
+    fn migration_is_reported_and_explicit_save_keeps_the_original_backup() {
+        let dir = TestDirectory::new();
+        let paths = dir.paths();
+        let legacy = include_str!("../tests/fixtures/settings/legacy-wrapper.json");
+        fs::write(&paths.primary, legacy).unwrap();
+
+        let report = load(&paths, crate::config::parse_settings_for_load).unwrap();
+        assert!(report.migrated);
+        assert_eq!(fs::read_to_string(&paths.primary).unwrap(), legacy);
+        assert!(!backup_path(&paths.primary).exists());
+
+        save(&report.settings_json, &paths).unwrap();
+        assert_eq!(
+            fs::read_to_string(backup_path(&paths.primary)).unwrap(),
+            legacy
+        );
+        assert_eq!(
+            fs::read_to_string(&paths.primary).unwrap(),
+            report.settings_json
+        );
     }
 }

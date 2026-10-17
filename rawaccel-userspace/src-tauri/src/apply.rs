@@ -18,12 +18,14 @@ pub(crate) fn apply_with(
     apply: impl FnOnce(&AppConfig) -> Result<(), String>,
     save: impl FnOnce(&str) -> Result<SaveReport, String>,
 ) -> Result<ApplyReport, String> {
-    let config: AppConfig = serde_json::from_str(settings_json)
+    let document = crate::config::normalize_settings_json(settings_json)?;
+    let config: AppConfig = serde_json::from_value(document.clone())
         .map_err(|error| format!("Failed to parse settings JSON: {error}"))?;
-    config.validate()?;
+    let settings_json = serde_json::to_string_pretty(&document)
+        .map_err(|error| format!("Failed to serialize settings: {error}"))?;
     apply(&config)?;
 
-    Ok(match save(settings_json) {
+    Ok(match save(&settings_json) {
         Ok(report) => ApplyReport {
             applied: true,
             saved: true,
@@ -56,6 +58,45 @@ mod tests {
             default_device_config: None,
         })
         .unwrap()
+    }
+
+    #[test]
+    fn unsupported_schema_never_reaches_driver_or_disk() {
+        let raw = format!(
+            "{{\"schema_version\":{},\"profiles\":[]}}",
+            crate::config::SETTINGS_SCHEMA_VERSION + 1
+        );
+        let result = apply_with(
+            &raw,
+            |_| panic!("Must reject before driver access"),
+            |_| panic!("Must not save a future schema"),
+        );
+        assert!(result
+            .unwrap_err()
+            .contains("Unsupported settings schema version"));
+    }
+
+    #[test]
+    fn explicit_apply_saves_current_schema_and_retains_document_extensions() {
+        let mut value: serde_json::Value = serde_json::from_str(&settings()).unwrap();
+        value["editor_metadata"] = serde_json::json!({"note":"preserve"});
+        apply_with(
+            &value.to_string(),
+            |_| Ok(()),
+            |raw| {
+                let saved: serde_json::Value = serde_json::from_str(raw).unwrap();
+                assert_eq!(
+                    saved["schema_version"],
+                    crate::config::SETTINGS_SCHEMA_VERSION
+                );
+                assert_eq!(saved["editor_metadata"]["note"], "preserve");
+                Ok(SaveReport {
+                    saved_paths: vec!["fixture.json".to_string()],
+                    warnings: vec![],
+                })
+            },
+        )
+        .unwrap();
     }
 
     #[test]

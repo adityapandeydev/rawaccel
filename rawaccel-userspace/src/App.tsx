@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { Moon, Sun, Monitor, Layers, Activity, Plus, Save, Download, Upload, Mouse, Menu, X, Settings, Maximize, Minimize, Check } from "lucide-react";
 import "./index.css";
-import { Profile, defaultProfile, AccelArgs, Device, DeviceConfig, SettingsLoadReport, SettingsApplyReport } from "./types";
+import { Profile, defaultProfile, AccelArgs, Device, DeviceConfig, SettingsLoadReport, SettingsApplyReport, SETTINGS_SCHEMA_VERSION } from "./types";
 import { NumberInput } from "./components/NumberInput";
 import { CurveGraph } from "./components/CurveGraph";
 import { CustomSelect } from "./components/CustomSelect";
@@ -32,7 +32,7 @@ function App() {
 
   const [devices, setDevices] = useState<Device[]>([]);
   const [deviceConfig, setDeviceConfig] = useState<DeviceConfig[]>([]);
-  const [settingsMetadata, setSettingsMetadata] = useState<Record<string, unknown>>({});
+  const [settingsMetadata, setSettingsMetadata] = useState<Record<string, unknown>>({ schema_version: SETTINGS_SCHEMA_VERSION });
   
   const [activeTab, setActiveTab] = useState<"devices" | "mappings" | "profiles" | "settings">("profiles");
   const [theme, setTheme] = useState<"dark" | "light" | "system">("dark");
@@ -251,11 +251,11 @@ function App() {
         delete metadata.profiles;
         delete metadata.devices;
         setSettingsMetadata(metadata);
-        if (result.recovered) {
+        if (result.recovered || result.migrated) {
           setModalState({
             isOpen: true,
-            title: "Settings Recovered",
-            message: `Settings were recovered from ${result.source}. Your original files have not been changed.\n${result.warnings.join("\n")}`,
+            title: result.recovered ? "Settings Recovered" : "Settings Upgraded",
+            message: `Settings were loaded from ${result.source}.${result.migrated ? " They were upgraded in memory; use Apply Settings to save the upgrade." : ""} Your original files have not been changed.\n${result.warnings.join("\n")}`,
           });
         }
         if (parsed && parsed.profiles && parsed.profiles.length > 0) {
