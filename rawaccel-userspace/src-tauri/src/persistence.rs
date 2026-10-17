@@ -26,6 +26,16 @@ pub struct LoadReport {
     pub warnings: Vec<String>,
 }
 
+fn newer_schema_error(raw: &str) -> Option<String> {
+    let value: serde_json::Value = serde_json::from_str(raw).ok()?;
+    let version = value.get("schema_version")?.as_u64()?;
+    if version > crate::config::SETTINGS_SCHEMA_VERSION {
+        crate::config::settings_schema_version(&value).err()
+    } else {
+        None
+    }
+}
+
 pub(crate) fn load(
     paths: &SettingsPaths,
     parse: impl Fn(&str) -> Result<String, String>,
@@ -48,18 +58,8 @@ pub(crate) fn load(
             Ok(raw) => {
                 // A newer schema is not corruption. Falling back to an older
                 // mirror could silently downgrade the user's configuration.
-                if let Ok(value) = serde_json::from_str::<serde_json::Value>(&raw) {
-                    if value
-                        .get("schema_version")
-                        .and_then(serde_json::Value::as_u64)
-                        .is_some_and(|version| version > crate::config::SETTINGS_SCHEMA_VERSION)
-                    {
-                        return Err(format!(
-                            "{}: {}",
-                            path.display(),
-                            crate::config::settings_schema_version(&value).unwrap_err()
-                        ));
-                    }
+                if let Some(error) = newer_schema_error(&raw) {
+                    return Err(format!("{}: {}", path.display(), error));
                 }
                 parse(&raw).map(|settings_json| {
                     let migrated = serde_json::from_str::<serde_json::Value>(&raw).ok()
@@ -117,6 +117,11 @@ fn atomic_write_with_replace(
     let staged = StagedFile::new(path, content.as_bytes())?;
     match fs::read(path) {
         Ok(previous) => {
+            if let Ok(raw) = std::str::from_utf8(&previous) {
+                if let Some(error) = newer_schema_error(raw) {
+                    return Err(io::Error::new(io::ErrorKind::InvalidData, error));
+                }
+            }
             let backup = backup_path(path);
             let previous_is_valid = std::str::from_utf8(&previous)
                 .is_ok_and(|raw| crate::config::parse_settings_for_load(raw).is_ok());
@@ -509,5 +514,27 @@ mod tests {
             fs::read_to_string(&paths.primary).unwrap(),
             report.settings_json
         );
+    }
+
+    #[test]
+    fn saving_older_settings_cannot_replace_a_newer_document_or_its_backup() {
+        let dir = TestDirectory::new();
+        let path = dir.0.join("settings.json");
+        let future = format!(
+            "{{\"schema_version\":{},\"profiles\":[]}}",
+            crate::config::SETTINGS_SCHEMA_VERSION + 1
+        );
+        fs::write(&path, &future).unwrap();
+        let backup = valid_settings("existing backup");
+        fs::write(backup_path(&path), &backup).unwrap();
+
+        let error = atomic_write(&path, &valid_settings("older import")).unwrap_err();
+
+        assert!(error
+            .to_string()
+            .contains("Unsupported settings schema version"));
+        assert_eq!(fs::read_to_string(&path).unwrap(), future);
+        assert_eq!(fs::read_to_string(backup_path(&path)).unwrap(), backup);
+        assert_eq!(fs::read_dir(&dir.0).unwrap().count(), 2);
     }
 }
