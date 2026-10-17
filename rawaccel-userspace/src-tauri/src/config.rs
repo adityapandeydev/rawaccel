@@ -134,18 +134,50 @@ fn parse_speed_args(val: Option<&serde_json::Value>) -> AppSpeedArgs {
     args
 }
 
-/// Parses settings JSON, automatically detecting and migrating legacy C# Raw Accel files.
-pub fn parse_or_migrate_settings(raw_json: &str) -> Result<AppConfig, String> {
-    // 1. If valid modern format, return directly
-    if let Ok(config) = serde_json::from_str::<AppConfig>(raw_json) {
-        if config.validate().is_ok() {
-            return Ok(config);
-        }
-    }
+#[derive(Debug, PartialEq)]
+enum SettingsFormat {
+    Modern,
+    Legacy,
+}
 
-    // 2. Parse as generic JSON for legacy migration
+fn detect_settings_format(value: &serde_json::Value) -> Result<SettingsFormat, String> {
+    let object = value.as_object().ok_or("Settings must be a JSON object")?;
+    let profiles = object
+        .get("profiles")
+        .and_then(|profiles| profiles.as_array())
+        .ok_or("Settings must contain a profiles array")?;
+    let mut legacy = false;
+    let mut modern = object.contains_key("schema_version");
+    for profile in profiles {
+        let profile = profile.as_object().ok_or("Each profile must be an object")?;
+        legacy |= [
+            "argsX", "argsY", "domainXY", "rangeXY", "inputSpeedArgs",
+            "Whole or horizontal accel parameters", "Vertical accel parameters",
+            "Stretches domain for horizontal vs vertical inputs",
+            "Stretches accel range for horizontal vs vertical inputs",
+            "Input speed calculation parameters", "Output DPI",
+        ].iter().any(|key| profile.contains_key(*key));
+        modern |= [
+            "accel_x", "accel_y", "domain_weights", "range_weights",
+            "speed_processor_args", "output_dpi",
+        ].iter().any(|key| profile.contains_key(*key));
+    }
+    if legacy && modern {
+        return Err("Mixed modern and legacy settings are not supported; use one format per document".to_string());
+    }
+    Ok(if legacy { SettingsFormat::Legacy } else { SettingsFormat::Modern })
+}
+
+/// Select the format by its keys, never by whether validation happens to pass.
+pub fn parse_or_migrate_settings(raw_json: &str) -> Result<AppConfig, String> {
     let val: serde_json::Value = serde_json::from_str(raw_json)
         .map_err(|e| format!("Invalid JSON: {}", e))?;
+    if detect_settings_format(&val)? == SettingsFormat::Modern {
+        let config: AppConfig = serde_json::from_value(val)
+            .map_err(|error| format!("Invalid modern settings: {error}"))?;
+        config.validate()?;
+        return Ok(config);
+    }
 
     if let Some(profiles_val) = val.get("profiles").and_then(|p| p.as_array()) {
         let mut modern_profiles = Vec::new();
@@ -291,17 +323,16 @@ pub fn load_settings_from_disk() -> Result<String, String> {
 }
 
 pub(crate) fn parse_settings_for_load(raw: &str) -> Result<String, String> {
-    // Modern data that deserializes must pass validation; never reinterpret a
-    // validation failure as legacy. Preserve unknown editor metadata and format.
-    if let Ok(config) = serde_json::from_str::<AppConfig>(raw) {
-        config.validate()?;
-        return Ok(raw.to_string());
-    }
-    // Legacy migration is in memory only. Explicit Apply/Save preserves the
-    // original via the persistence layer's recovery copy.
+    let value: serde_json::Value = serde_json::from_str(raw)
+        .map_err(|error| format!("Invalid JSON: {error}"))?;
+    let format = detect_settings_format(&value)?;
     let config = parse_or_migrate_settings(raw)?;
-    config.validate()?;
-    serde_json::to_string_pretty(&config).map_err(|error| error.to_string())
+    match format {
+        SettingsFormat::Modern => Ok(raw.to_string()),
+        // Migration is in memory only; explicit saving retains the original.
+        SettingsFormat::Legacy => serde_json::to_string_pretty(&config)
+            .map_err(|error| error.to_string()),
+    }
 }
 
 pub(crate) fn settings_paths() -> crate::persistence::SettingsPaths {
@@ -813,6 +844,42 @@ impl AppAccelArgs {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn invalid_modern_import_returns_validation_error_instead_of_migrating() {
+        assert_eq!(
+            parse_or_migrate_settings("{\"profiles\":[],\"devices\":[]}").unwrap_err(),
+            "At least one profile is required"
+        );
+    }
+
+    #[test]
+    fn malformed_modern_fields_are_not_defaulted_by_legacy_migration() {
+        let config = AppConfig {
+            profiles: vec![AppProfile { name: "Modern".to_string(), ..Default::default() }],
+            devices: vec![],
+        };
+        let mut value = serde_json::to_value(config).unwrap();
+        value["profiles"][0]["accel_x"]["input_offset"] = serde_json::json!("bad number");
+        let raw = value.to_string();
+        let error = parse_or_migrate_settings(&raw).unwrap_err();
+        assert!(error.starts_with("Invalid modern settings:"));
+        assert!(error.contains("f64"));
+        assert_eq!(parse_settings_for_load(&raw).unwrap_err(), error);
+    }
+
+    #[test]
+    fn mixed_legacy_and_modern_documents_are_rejected() {
+        let raw = r#"{"profiles":[{"argsX":{"mode":"natural"}}, {"accel_x":{"mode":"tiered"}}]}"#;
+        assert!(parse_or_migrate_settings(raw).unwrap_err().contains("Mixed modern and legacy"));
+    }
+
+    #[test]
+    fn unsupported_document_shapes_are_rejected() {
+        for raw in ["[]", "{}", r#"{"profiles":null}"#, r#"{"profiles":[null]}"#] {
+            assert!(parse_or_migrate_settings(raw).is_err(), "Accepted {raw}");
+        }
+    }
 
     #[test]
     fn loading_invalid_modern_settings_preserves_validation_error() {
