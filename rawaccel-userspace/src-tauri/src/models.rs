@@ -228,21 +228,13 @@ impl Default for accel_union {
 }
 
 impl accel_union {
-    /// Write a curve struct into the union's raw memory.
-    pub fn write<T: Sized>(&mut self, value: &T) {
-        let size = std::mem::size_of::<T>();
-        assert!(
-            size <= ACCEL_UNION_SIZE,
-            "curve struct exceeds union capacity"
-        );
-        unsafe {
-            std::ptr::copy_nonoverlapping(
-                value as *const T as *const u8,
-                self.memory.as_mut_ptr(),
-                size,
-            );
-        }
+    /// Encode only named curve fields; never copy uninitialized Rust padding.
+    pub(crate) fn write<T: crate::wire::Wire>(&mut self, value: &T) {
+        assert!(std::mem::size_of::<T>() <= ACCEL_UNION_SIZE, "curve struct exceeds union capacity");
+        self.memory.fill(0);
+        value.write(&mut self.memory);
     }
+
 }
 
 /// Inner data_t struct inside modifier_settings.

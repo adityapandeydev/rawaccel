@@ -1014,9 +1014,27 @@ impl SynchronousGain {
 #[repr(C)]
 struct Noaccel;
 
+
+// Explicit curve encoders retain C layout and leave padding initialized.
+crate::wire::wire_struct!(ClassicLegacy, accel_raised, cap, sign);
+crate::wire::wire_struct!(ClassicGain, accel_raised, cap, constant, sign);
+crate::wire::wire_struct!(JumpLegacy, step, smooth_rate);
+crate::wire::wire_struct!(JumpGain, step, smooth_rate, c);
+crate::wire::wire_struct!(NaturalLegacy, offset, accel, limit);
+crate::wire::wire_struct!(NaturalGain, offset, accel, limit, constant);
+crate::wire::wire_struct!(PowerLegacy, offset, scale, constant, cap);
+crate::wire::wire_struct!(PowerGain, offset, scale, constant, cap, constant_b);
+crate::wire::wire_struct!(TieredLinearLegacy, m1, x1, m2, x1_end, inv_trans1, m3, x2, x2_end, inv_trans2);
+crate::wire::wire_struct!(TieredNaturalLegacy, m1, x1, l1, a1, x2, v2, m2_prime, l2, a2);
+crate::wire::wire_struct!(TieredNaturalGain, m1, x1, l1, a1, x2, v2, m2_prime, l2, a2);
+crate::wire::wire_struct!(Lookup, size, velocity);
+crate::wire::wire_struct!(SynchronousLegacy, log_motivity, gamma_const, log_syncspeed, syncspeed, sharpness, sharpness_recip, use_linear_clamp, minimum_sens, maximum_sens);
+crate::wire::wire_struct!(SynchronousGain, velocity, range_start, range_stop, range_num, x_start);
+
 // ── Union Initialization ─────────────────────────────────────────────────
 
 fn init_accel_union(union: &mut accel_union, args: &mut accel_args) {
+    union.memory.fill(0);
     match args.mode {
         accel_mode::classic => {
             if args.gain {
