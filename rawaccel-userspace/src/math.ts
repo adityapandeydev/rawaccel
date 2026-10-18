@@ -149,7 +149,7 @@ function createPowerEvaluator(args: AccelArgs): Evaluator {
       scale = scale_from_gain(args.cap.x, args.cap.y, n);
     } else {
       scale = scale_from_output(args.cap.x, args.cap.y, n, 0);
-      return (x: number) => Math.min(Math.pow(scale * x, n), args.cap.y);
+      return (x: number) => x <= 0 ? 0 : Math.min(Math.pow(scale * x, n), args.cap.y);
     }
   }
 
@@ -262,12 +262,13 @@ function createSynchronousEvaluator(args: AccelArgs): Evaluator {
   sample(2 ** 9);
 
   return (x: number) => {
-    if (x < 0.125) return data[0] / 0.125;
-    const e = Math.min(Math.floor(Math.log2(x)), 8);
-    const idxF = 8 * ((e + 3) + (x * 2 ** -e - 1));
-    const idx = Math.min(Math.trunc(idxF), data.length - 2);
-    const y = data[idx] + (idxF - idx) * (data[idx + 1] - data[idx]);
-    return y / x;
+    const e = Math.min(Math.floor(Math.log2(Math.abs(x))), 8);
+    if (e >= -3) {
+      const idxF = 8 * ((e + 3) + (x * 2 ** -e - 1));
+      const idx = Math.min(Math.trunc(idxF), data.length - 2);
+      if (idx >= 0) return lerp(data[idx], data[idx + 1], idxF - idx) / x;
+    }
+    return data[0] / 0.125;
   };
 }
 

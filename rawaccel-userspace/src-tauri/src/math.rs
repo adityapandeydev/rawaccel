@@ -1016,16 +1016,19 @@ impl SynchronousGain {
     }
 
     fn evaluate(&self, x: f64, args: &accel_args) -> f64 {
-        if x >= self.x_start {
-            let e = (x.log2().floor() as i32).min(self.range_stop - 1);
+        // C++ ilogb uses the magnitude, including for negative reference inputs.
+        let e = (x.abs().log2().floor() as i32).min(self.range_stop - 1);
+        if e >= self.range_start {
             let idx_f = self.range_num as f64
                 * ((e - self.range_start) as f64 + x * 2.0f64.powi(-e) - 1.0);
             let size = (self.range_stop - self.range_start) * self.range_num + 1;
-            let idx = (idx_f as usize).min((size - 2) as usize);
-            let a = args.data[idx] as f64;
-            let b = args.data[idx + 1] as f64;
-            let y = a + (idx_f - idx as f64) * (b - a);
-            return if self.velocity { y / x } else { y };
+            let idx = (idx_f as i32).min(size - 2) as u32 as usize;
+            if idx < models::LUT_RAW_DATA_CAPACITY - 1 {
+                let a = args.data[idx] as f64;
+                let b = args.data[idx + 1] as f64;
+                let y = a + (idx_f - idx as f64) * (b - a);
+                return if self.velocity { y / x } else { y };
+            }
         }
         let y = args.data[0] as f64;
         if self.velocity { y / self.x_start } else { y }
@@ -1235,6 +1238,7 @@ pub fn evaluate_curve(args: &accel_args, x: f64) -> f64 {
 // ── Mathematical Reference & Parity Test Suite ───────────────────────────
 
 
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1268,6 +1272,7 @@ mod tests {
         assert_eq!(args.data[0], 0.0625);
         assert_eq!(evaluate_curve(&args, 0.0), 0.5);
         assert_eq!(evaluate_curve(&args, 0.125), 0.5);
+        assert_eq!(evaluate_curve(&args, -1.0), -0.125);
         // Gain integrates the curve; Legacy is exactly 1 at sync_speed.
         assert!(evaluate_curve(&args, 10.0) < 0.9);
         assert!(evaluate_curve(&args, 1024.0).is_finite());
