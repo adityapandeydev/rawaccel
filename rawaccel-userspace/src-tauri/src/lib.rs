@@ -1,3 +1,4 @@
+mod driver_status;
 #[cfg(test)]
 mod abi_tests;
 mod input_buffers;
@@ -14,6 +15,12 @@ pub mod math;
 pub mod models;
 pub mod mouse_tracker;
 pub mod persistence;
+
+#[tauri::command]
+async fn get_driver_status() -> Result<driver_status::DriverStatus, String> {
+    tauri::async_runtime::spawn_blocking(driver_status::get).await
+        .map_err(|error| format!("Driver status worker failed: {error}"))
+}
 
 #[tauri::command]
 fn apply_settings(settings_json: String) -> Result<apply::ApplyReport, String> {
@@ -55,7 +62,8 @@ pub fn run() {
             apply_settings,
             load_settings,
             import_settings,
-            get_devices
+            get_devices,
+            get_driver_status
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

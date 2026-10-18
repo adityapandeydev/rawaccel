@@ -15,7 +15,46 @@ pub(crate) const IOCTL_READ: u32 = 0x88882220;
 pub(crate) const IOCTL_WRITE: u32 = 0x88882224;
 pub(crate) const IOCTL_GET_VERSION: u32 = 0x88882228;
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum FailureStage {
+    Open,
+    VersionQuery,
+    VersionResponse,
+}
+
+#[derive(Clone, Debug, serde::Serialize)]
+pub struct DriverFailure {
+    pub stage: FailureStage,
+    pub win32_code: Option<u32>,
+    pub hresult: Option<String>,
+    pub message: String,
+}
+impl DriverFailure {
+    pub(crate) fn windows(stage: FailureStage, action: &str, error: windows::core::Error) -> Self {
+        let code = error.code().0 as u32;
+        Self {
+            stage,
+            win32_code: ((code & 0xffff0000) == 0x80070000).then_some(code & 0xffff),
+            hresult: Some(format!("0x{code:08X}")),
+            message: ioctl_error(action, error),
+        }
+    }
+    fn malformed(message: String) -> Self {
+        Self {
+            stage: FailureStage::VersionResponse,
+            win32_code: None,
+            hresult: None,
+            message,
+        }
+    }
+}
+
 pub fn open_driver() -> Result<OwnedHandle, String> {
+    open_checked().map_err(|error| error.message)
+}
+
+fn open_checked() -> Result<OwnedHandle, DriverFailure> {
     let mut wide_name: Vec<u16> = DEVICE_NAME.encode_utf16().collect();
     wide_name.push(0);
 
@@ -30,10 +69,15 @@ pub fn open_driver() -> Result<OwnedHandle, String> {
             None,
         )
     }
-    .map_err(|e| format!("Failed to open driver: {}", e))?;
+    .map_err(|error| DriverFailure::windows(FailureStage::Open, "open driver", error))?;
 
     if handle.is_invalid() {
-        Err("Failed to open driver. Is RawAccel installed and running?".to_string())
+        Err(DriverFailure {
+            stage: FailureStage::Open,
+            win32_code: None,
+            hresult: None,
+            message: "Windows returned an invalid RawAccel device handle".into(),
+        })
     } else {
         // CreateFileW transferred ownership of this valid handle to us.
         Ok(unsafe { OwnedHandle::from_raw_handle(handle.0) })
@@ -41,7 +85,15 @@ pub fn open_driver() -> Result<OwnedHandle, String> {
 }
 
 pub fn get_version() -> Result<crate::models::version_t, String> {
-    let handle = open_driver()?;
+    probe().map_err(|error| error.message)
+}
+
+pub(crate) fn probe() -> Result<crate::models::version_t, DriverFailure> {
+    let handle = open_checked()?;
+    query_version(&handle)
+}
+
+fn query_version(handle: &OwnedHandle) -> Result<crate::models::version_t, DriverFailure> {
     let mut version = crate::models::version_t::default();
     let mut bytes_returned = 0u32;
 
@@ -58,8 +110,10 @@ pub fn get_version() -> Result<crate::models::version_t, String> {
         )
     };
 
-    success.map_err(|error| ioctl_error("get driver version", error))?;
-    checked_version(version, bytes_returned)
+    success.map_err(|error| {
+        DriverFailure::windows(FailureStage::VersionQuery, "get driver version", error)
+    })?;
+    checked_version(version, bytes_returned).map_err(DriverFailure::malformed)
 }
 
 pub fn apply_config(config: &crate::config::AppConfig) -> Result<(), String> {

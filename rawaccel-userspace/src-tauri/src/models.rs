@@ -322,7 +322,7 @@ pub struct io_base {
 
 /// Exact response written by common/rawaccel-version.h (three C int fields).
 #[repr(C)]
-#[derive(Copy, Clone, Debug, Default, PartialEq, Eq)]
+#[derive(Copy, Clone, Debug, Default, PartialEq, Eq, serde::Serialize)]
 pub struct version_t {
     pub major: i32,
     pub minor: i32,
