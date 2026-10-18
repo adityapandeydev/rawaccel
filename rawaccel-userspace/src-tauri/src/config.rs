@@ -245,15 +245,15 @@ fn validate_accel_args(
     args: &AppAccelArgs,
 ) -> Result<(), String> {
 
-                if !["noaccel", "linear", "classic", "jump", "natural", "synchronous", "power", "lookup", "tiered"].contains(&args.mode.as_str()) {
-                    return Err(format!("Profile '{}' {axis}: unknown acceleration mode '{}'", profile_name, args.mode));
-                }
-                if !["in", "out", "io"].contains(&args.cap_mode.as_str()) {
-                    return Err(format!("Profile '{}' {axis}: unknown cap mode '{}'", profile_name, args.cap_mode));
-                }
-                if !["linear", "natural"].contains(&args.t_type.as_str()) {
-                    return Err(format!("Profile '{}' {axis}: unknown Tiered subtype '{}'", profile_name, args.t_type));
-                }
+    if !["noaccel", "linear", "classic", "jump", "natural", "synchronous", "power", "lookup", "tiered"].contains(&args.mode.as_str()) {
+        return Err(format!("Profile '{}' {axis}: unknown acceleration mode '{}'", profile_name, args.mode));
+    }
+    if !["in", "out", "io"].contains(&args.cap_mode.as_str()) {
+        return Err(format!("Profile '{}' {axis}: unknown cap mode '{}'", profile_name, args.cap_mode));
+    }
+    if !["linear", "natural"].contains(&args.t_type.as_str()) {
+        return Err(format!("Profile '{}' {axis}: unknown Tiered subtype '{}'", profile_name, args.t_type));
+    }
     crate::validation::accel_numbers(args).map_err(|error| format!("Profile '{profile_name}' {axis}: {error}"))?;
     validate_lookup_table(profile_name, axis, args)?;
     let requires_cap = args.mode == "jump" || (["classic", "linear", "power"].contains(&args.mode.as_str()) && args.cap_mode == "io");
@@ -278,9 +278,6 @@ fn validate_accel_args(
     }
 
     match args.mode.as_str() {
-        "lookup" => {
-            validate_lookup_table(profile_name, axis, args)?;
-        }
         "tiered" => {
             if args.tiered_multiplier1 <= 0.0 || args.tiered_multiplier2 <= 0.0 || args.tiered_multiplier3 <= 0.0 {
                 return Err(format!("Profile '{profile_name}' {axis}: tiered multipliers must be positive"));

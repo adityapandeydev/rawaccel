@@ -141,6 +141,35 @@ mod tests {
             default_device_config: None,
         }
     }
+
+    #[test]
+    fn shared_frontend_backend_validation_cases() {
+        let cases: serde_json::Value = serde_json::from_str(include_str!(
+            "../tests/fixtures/settings/validation-cases.json"
+        ))
+        .unwrap();
+        for case in cases.as_array().unwrap() {
+            let mut document = serde_json::json!({ "profiles": [crate::settings_defaults::profile()], "devices": [], "default_device_config": null });
+            for patch in case["patches"].as_array().unwrap() {
+                *document
+                    .pointer_mut(patch["path"].as_str().unwrap())
+                    .expect("Fixture path exists") = patch["value"].clone();
+            }
+            let result = crate::config::parse_or_migrate_settings(&document.to_string());
+            assert_eq!(
+                result.is_ok(),
+                case["valid"].as_bool().unwrap(),
+                "{}: {:?}",
+                case["name"],
+                result
+            );
+            if let Ok(c) = result {
+                for profile in c.profiles {
+                    profile.to_native().unwrap();
+                }
+            }
+        }
+    }
     #[test]
     fn native_conversion_preserves_values_and_rejects_silent_repairs() {
         let mut p = AppProfile::default();

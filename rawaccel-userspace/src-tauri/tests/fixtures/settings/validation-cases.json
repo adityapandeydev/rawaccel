@@ -1,0 +1,1679 @@
+[
+  {
+    "name": "canonical defaults",
+    "valid": true,
+    "patches": []
+  },
+  {
+    "name": "output_dpi rejects 0",
+    "valid": false,
+    "patches": [
+      {
+        "path": "/profiles/0/output_dpi",
+        "value": 0
+      }
+    ]
+  },
+  {
+    "name": "yx_output_dpi_ratio rejects 0",
+    "valid": false,
+    "patches": [
+      {
+        "path": "/profiles/0/yx_output_dpi_ratio",
+        "value": 0
+      }
+    ]
+  },
+  {
+    "name": "lr_output_dpi_ratio rejects 0",
+    "valid": false,
+    "patches": [
+      {
+        "path": "/profiles/0/lr_output_dpi_ratio",
+        "value": 0
+      }
+    ]
+  },
+  {
+    "name": "ud_output_dpi_ratio rejects -1",
+    "valid": false,
+    "patches": [
+      {
+        "path": "/profiles/0/ud_output_dpi_ratio",
+        "value": -1
+      }
+    ]
+  },
+  {
+    "name": "degrees_snap rejects -1",
+    "valid": false,
+    "patches": [
+      {
+        "path": "/profiles/0/degrees_snap",
+        "value": -1
+      }
+    ]
+  },
+  {
+    "name": "degrees_snap rejects 45.01",
+    "valid": false,
+    "patches": [
+      {
+        "path": "/profiles/0/degrees_snap",
+        "value": 45.01
+      }
+    ]
+  },
+  {
+    "name": "speed_max rejects -1",
+    "valid": false,
+    "patches": [
+      {
+        "path": "/profiles/0/speed_max",
+        "value": -1
+      }
+    ]
+  },
+  {
+    "name": "domain_weights/x rejects 0",
+    "valid": false,
+    "patches": [
+      {
+        "path": "/profiles/0/domain_weights/x",
+        "value": 0
+      }
+    ]
+  },
+  {
+    "name": "range_weights/y rejects -1",
+    "valid": false,
+    "patches": [
+      {
+        "path": "/profiles/0/range_weights/y",
+        "value": -1
+      }
+    ]
+  },
+  {
+    "name": "speed_processor_args/lp_norm rejects 0",
+    "valid": false,
+    "patches": [
+      {
+        "path": "/profiles/0/speed_processor_args/lp_norm",
+        "value": 0
+      }
+    ]
+  },
+  {
+    "name": "output_dpi accepts -800",
+    "valid": true,
+    "patches": [
+      {
+        "path": "/profiles/0/output_dpi",
+        "value": -800
+      }
+    ]
+  },
+  {
+    "name": "yx_output_dpi_ratio accepts -2",
+    "valid": true,
+    "patches": [
+      {
+        "path": "/profiles/0/yx_output_dpi_ratio",
+        "value": -2
+      }
+    ]
+  },
+  {
+    "name": "degrees_snap accepts 45",
+    "valid": true,
+    "patches": [
+      {
+        "path": "/profiles/0/degrees_snap",
+        "value": 45
+      }
+    ]
+  },
+  {
+    "name": "degrees_rotation accepts -360",
+    "valid": true,
+    "patches": [
+      {
+        "path": "/profiles/0/degrees_rotation",
+        "value": -360
+      }
+    ]
+  },
+  {
+    "name": "range_weights/x accepts 0",
+    "valid": true,
+    "patches": [
+      {
+        "path": "/profiles/0/range_weights/x",
+        "value": 0
+      }
+    ]
+  },
+  {
+    "name": "speed_min accepts -1",
+    "valid": true,
+    "patches": [
+      {
+        "path": "/profiles/0/speed_min",
+        "value": -1
+      }
+    ]
+  },
+  {
+    "name": "speed_processor_args/lp_norm accepts 32",
+    "valid": true,
+    "patches": [
+      {
+        "path": "/profiles/0/speed_processor_args/lp_norm",
+        "value": 32
+      }
+    ]
+  },
+  {
+    "name": "speed_processor_args/input_speed_smooth_halflife accepts -1",
+    "valid": true,
+    "patches": [
+      {
+        "path": "/profiles/0/speed_processor_args/input_speed_smooth_halflife",
+        "value": -1
+      }
+    ]
+  },
+  {
+    "name": "inverted speed bounds",
+    "valid": false,
+    "patches": [
+      {
+        "path": "/profiles/0/speed_min",
+        "value": 5
+      },
+      {
+        "path": "/profiles/0/speed_max",
+        "value": 4
+      }
+    ]
+  },
+  {
+    "name": "unknown mode",
+    "valid": false,
+    "patches": [
+      {
+        "path": "/profiles/0/accel_y/mode",
+        "value": "wat"
+      }
+    ]
+  },
+  {
+    "name": "unknown cap_mode",
+    "valid": false,
+    "patches": [
+      {
+        "path": "/profiles/0/accel_y/cap_mode",
+        "value": "wat"
+      }
+    ]
+  },
+  {
+    "name": "unknown t_type",
+    "valid": false,
+    "patches": [
+      {
+        "path": "/profiles/0/accel_y/t_type",
+        "value": "wat"
+      }
+    ]
+  },
+  {
+    "name": "classic invalid acceleration",
+    "valid": false,
+    "patches": [
+      {
+        "path": "/profiles/0/accel_y/mode",
+        "value": "classic"
+      },
+      {
+        "path": "/profiles/0/accel_y/acceleration",
+        "value": 0
+      }
+    ]
+  },
+  {
+    "name": "classic invalid exponent_classic",
+    "valid": false,
+    "patches": [
+      {
+        "path": "/profiles/0/accel_y/mode",
+        "value": "classic"
+      },
+      {
+        "path": "/profiles/0/accel_y/exponent_classic",
+        "value": 1
+      }
+    ]
+  },
+  {
+    "name": "linear invalid acceleration",
+    "valid": false,
+    "patches": [
+      {
+        "path": "/profiles/0/accel_y/mode",
+        "value": "linear"
+      },
+      {
+        "path": "/profiles/0/accel_y/acceleration",
+        "value": 0
+      }
+    ]
+  },
+  {
+    "name": "natural invalid decay_rate",
+    "valid": false,
+    "patches": [
+      {
+        "path": "/profiles/0/accel_y/mode",
+        "value": "natural"
+      },
+      {
+        "path": "/profiles/0/accel_y/decay_rate",
+        "value": 0
+      }
+    ]
+  },
+  {
+    "name": "natural invalid limit",
+    "valid": false,
+    "patches": [
+      {
+        "path": "/profiles/0/accel_y/mode",
+        "value": "natural"
+      },
+      {
+        "path": "/profiles/0/accel_y/limit",
+        "value": 0
+      }
+    ]
+  },
+  {
+    "name": "power invalid scale",
+    "valid": false,
+    "patches": [
+      {
+        "path": "/profiles/0/accel_y/mode",
+        "value": "power"
+      },
+      {
+        "path": "/profiles/0/accel_y/scale",
+        "value": 0
+      }
+    ]
+  },
+  {
+    "name": "power invalid exponent_power",
+    "valid": false,
+    "patches": [
+      {
+        "path": "/profiles/0/accel_y/mode",
+        "value": "power"
+      },
+      {
+        "path": "/profiles/0/accel_y/exponent_power",
+        "value": 0
+      }
+    ]
+  },
+  {
+    "name": "synchronous invalid motivity",
+    "valid": false,
+    "patches": [
+      {
+        "path": "/profiles/0/accel_y/mode",
+        "value": "synchronous"
+      },
+      {
+        "path": "/profiles/0/accel_y/motivity",
+        "value": 1
+      }
+    ]
+  },
+  {
+    "name": "synchronous invalid gamma",
+    "valid": false,
+    "patches": [
+      {
+        "path": "/profiles/0/accel_y/mode",
+        "value": "synchronous"
+      },
+      {
+        "path": "/profiles/0/accel_y/gamma",
+        "value": 0
+      }
+    ]
+  },
+  {
+    "name": "synchronous invalid sync_speed",
+    "valid": false,
+    "patches": [
+      {
+        "path": "/profiles/0/accel_y/mode",
+        "value": "synchronous"
+      },
+      {
+        "path": "/profiles/0/accel_y/sync_speed",
+        "value": 0
+      }
+    ]
+  },
+  {
+    "name": "synchronous invalid smooth",
+    "valid": false,
+    "patches": [
+      {
+        "path": "/profiles/0/accel_y/mode",
+        "value": "synchronous"
+      },
+      {
+        "path": "/profiles/0/accel_y/smooth",
+        "value": 1.1
+      }
+    ]
+  },
+  {
+    "name": "jump invalid smooth",
+    "valid": false,
+    "patches": [
+      {
+        "path": "/profiles/0/accel_y/mode",
+        "value": "jump"
+      },
+      {
+        "path": "/profiles/0/accel_y/smooth",
+        "value": -0.1
+      }
+    ]
+  },
+  {
+    "name": "natural limit one is supported",
+    "valid": true,
+    "patches": [
+      {
+        "path": "/profiles/0/accel_x/mode",
+        "value": "natural"
+      },
+      {
+        "path": "/profiles/0/accel_x/limit",
+        "value": 1
+      }
+    ]
+  },
+  {
+    "name": "inactive zero acceleration stays zero",
+    "valid": true,
+    "patches": [
+      {
+        "path": "/profiles/0/accel_x/acceleration",
+        "value": 0
+      }
+    ]
+  },
+  {
+    "name": "jump needs nonzero IO caps",
+    "valid": false,
+    "patches": [
+      {
+        "path": "/profiles/0/accel_x/mode",
+        "value": "jump"
+      },
+      {
+        "path": "/profiles/0/accel_x/cap_mode",
+        "value": "io"
+      },
+      {
+        "path": "/profiles/0/accel_x/cap/x",
+        "value": 0
+      }
+    ]
+  },
+  {
+    "name": "classic needs nonzero IO caps",
+    "valid": false,
+    "patches": [
+      {
+        "path": "/profiles/0/accel_x/mode",
+        "value": "classic"
+      },
+      {
+        "path": "/profiles/0/accel_x/cap_mode",
+        "value": "io"
+      },
+      {
+        "path": "/profiles/0/accel_x/cap/x",
+        "value": 0
+      }
+    ]
+  },
+  {
+    "name": "linear needs nonzero IO caps",
+    "valid": false,
+    "patches": [
+      {
+        "path": "/profiles/0/accel_x/mode",
+        "value": "linear"
+      },
+      {
+        "path": "/profiles/0/accel_x/cap_mode",
+        "value": "io"
+      },
+      {
+        "path": "/profiles/0/accel_x/cap/x",
+        "value": 0
+      }
+    ]
+  },
+  {
+    "name": "power needs nonzero IO caps",
+    "valid": false,
+    "patches": [
+      {
+        "path": "/profiles/0/accel_x/mode",
+        "value": "power"
+      },
+      {
+        "path": "/profiles/0/accel_x/cap_mode",
+        "value": "io"
+      },
+      {
+        "path": "/profiles/0/accel_x/cap/x",
+        "value": 0
+      }
+    ]
+  },
+  {
+    "name": "classic input cap precedes offset",
+    "valid": false,
+    "patches": [
+      {
+        "path": "/profiles/0/accel_x/mode",
+        "value": "classic"
+      },
+      {
+        "path": "/profiles/0/accel_x/cap_mode",
+        "value": "in"
+      },
+      {
+        "path": "/profiles/0/accel_x/input_offset",
+        "value": 16
+      }
+    ]
+  },
+  {
+    "name": "power output cap precedes offset",
+    "valid": false,
+    "patches": [
+      {
+        "path": "/profiles/0/accel_x/mode",
+        "value": "power"
+      },
+      {
+        "path": "/profiles/0/accel_x/cap_mode",
+        "value": "out"
+      },
+      {
+        "path": "/profiles/0/accel_x/output_offset",
+        "value": 2
+      }
+    ]
+  },
+  {
+    "name": "Tiered linear valid",
+    "valid": true,
+    "patches": [
+      {
+        "path": "/profiles/0/accel_x/mode",
+        "value": "tiered"
+      },
+      {
+        "path": "/profiles/0/accel_x/t_type",
+        "value": "linear"
+      }
+    ]
+  },
+  {
+    "name": "Tiered natural valid",
+    "valid": true,
+    "patches": [
+      {
+        "path": "/profiles/0/accel_x/mode",
+        "value": "tiered"
+      },
+      {
+        "path": "/profiles/0/accel_x/t_type",
+        "value": "natural"
+      }
+    ]
+  },
+  {
+    "name": "Tiered linear invalid tiered_transition1",
+    "valid": false,
+    "patches": [
+      {
+        "path": "/profiles/0/accel_x/mode",
+        "value": "tiered"
+      },
+      {
+        "path": "/profiles/0/accel_x/t_type",
+        "value": "linear"
+      },
+      {
+        "path": "/profiles/0/accel_x/tiered_transition1",
+        "value": 0
+      }
+    ]
+  },
+  {
+    "name": "Tiered linear invalid tiered_input_offset2",
+    "valid": false,
+    "patches": [
+      {
+        "path": "/profiles/0/accel_x/mode",
+        "value": "tiered"
+      },
+      {
+        "path": "/profiles/0/accel_x/t_type",
+        "value": "linear"
+      },
+      {
+        "path": "/profiles/0/accel_x/tiered_input_offset2",
+        "value": 9
+      }
+    ]
+  },
+  {
+    "name": "Tiered natural invalid tiered_input_offset2",
+    "valid": false,
+    "patches": [
+      {
+        "path": "/profiles/0/accel_x/mode",
+        "value": "tiered"
+      },
+      {
+        "path": "/profiles/0/accel_x/t_type",
+        "value": "natural"
+      },
+      {
+        "path": "/profiles/0/accel_x/tiered_input_offset2",
+        "value": 0
+      }
+    ]
+  },
+  {
+    "name": "Tiered natural invalid tiered_decay_rate2",
+    "valid": false,
+    "patches": [
+      {
+        "path": "/profiles/0/accel_x/mode",
+        "value": "tiered"
+      },
+      {
+        "path": "/profiles/0/accel_x/t_type",
+        "value": "natural"
+      },
+      {
+        "path": "/profiles/0/accel_x/tiered_decay_rate2",
+        "value": 0
+      }
+    ]
+  },
+  {
+    "name": "Tiered linear invalid tiered_multiplier3",
+    "valid": false,
+    "patches": [
+      {
+        "path": "/profiles/0/accel_x/mode",
+        "value": "tiered"
+      },
+      {
+        "path": "/profiles/0/accel_x/t_type",
+        "value": "linear"
+      },
+      {
+        "path": "/profiles/0/accel_x/tiered_multiplier3",
+        "value": 0
+      }
+    ]
+  },
+  {
+    "name": "Tiered transition endpoints overflow",
+    "valid": false,
+    "patches": [
+      {
+        "path": "/profiles/0/accel_x/mode",
+        "value": "tiered"
+      },
+      {
+        "path": "/profiles/0/accel_x/tiered_input_offset2",
+        "value": 1e+308
+      },
+      {
+        "path": "/profiles/0/accel_x/tiered_transition2",
+        "value": 1e+308
+      }
+    ]
+  },
+  {
+    "name": "lookup negative Y allowed",
+    "valid": true,
+    "patches": [
+      {
+        "path": "/profiles/0/accel_x/mode",
+        "value": "lookup"
+      },
+      {
+        "path": "/profiles/0/accel_x/lookup_table",
+        "value": [
+          { "x": 1, "y": -1 },
+          { "x": 2, "y": 1e-50 }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "lookup X overflows f32",
+    "valid": false,
+    "patches": [
+      {
+        "path": "/profiles/0/accel_x/mode",
+        "value": "lookup"
+      },
+      {
+        "path": "/profiles/0/accel_x/lookup_table",
+        "value": [
+          { "x": 1, "y": 1 },
+          { "x": 1e+40, "y": 1 }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "lookup Y overflows f32",
+    "valid": false,
+    "patches": [
+      {
+        "path": "/profiles/0/accel_x/mode",
+        "value": "lookup"
+      },
+      {
+        "path": "/profiles/0/accel_x/lookup_table",
+        "value": [
+          { "x": 1, "y": 1 },
+          { "x": 2, "y": 1e+40 }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "lookup X underflows f32",
+    "valid": false,
+    "patches": [
+      {
+        "path": "/profiles/0/accel_x/mode",
+        "value": "lookup"
+      },
+      {
+        "path": "/profiles/0/accel_x/lookup_table",
+        "value": [
+          { "x": 1e-50, "y": 1 },
+          { "x": 2, "y": 1 }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "lookup X collapses in f32",
+    "valid": false,
+    "patches": [
+      {
+        "path": "/profiles/0/accel_x/mode",
+        "value": "lookup"
+      },
+      {
+        "path": "/profiles/0/accel_x/lookup_table",
+        "value": [
+          { "x": 1, "y": 1 },
+          { "x": 1.000000001, "y": 1 }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "lookup capacity accepted",
+    "valid": true,
+    "patches": [
+      {
+        "path": "/profiles/0/accel_x/mode",
+        "value": "lookup"
+      },
+      {
+        "path": "/profiles/0/accel_x/lookup_table",
+        "value": [
+          { "x": 1, "y": 1 },
+          { "x": 2, "y": 1 },
+          { "x": 3, "y": 1 },
+          { "x": 4, "y": 1 },
+          { "x": 5, "y": 1 },
+          { "x": 6, "y": 1 },
+          { "x": 7, "y": 1 },
+          { "x": 8, "y": 1 },
+          { "x": 9, "y": 1 },
+          { "x": 10, "y": 1 },
+          { "x": 11, "y": 1 },
+          { "x": 12, "y": 1 },
+          { "x": 13, "y": 1 },
+          { "x": 14, "y": 1 },
+          { "x": 15, "y": 1 },
+          { "x": 16, "y": 1 },
+          { "x": 17, "y": 1 },
+          { "x": 18, "y": 1 },
+          { "x": 19, "y": 1 },
+          { "x": 20, "y": 1 },
+          { "x": 21, "y": 1 },
+          { "x": 22, "y": 1 },
+          { "x": 23, "y": 1 },
+          { "x": 24, "y": 1 },
+          { "x": 25, "y": 1 },
+          { "x": 26, "y": 1 },
+          { "x": 27, "y": 1 },
+          { "x": 28, "y": 1 },
+          { "x": 29, "y": 1 },
+          { "x": 30, "y": 1 },
+          { "x": 31, "y": 1 },
+          { "x": 32, "y": 1 },
+          { "x": 33, "y": 1 },
+          { "x": 34, "y": 1 },
+          { "x": 35, "y": 1 },
+          { "x": 36, "y": 1 },
+          { "x": 37, "y": 1 },
+          { "x": 38, "y": 1 },
+          { "x": 39, "y": 1 },
+          { "x": 40, "y": 1 },
+          { "x": 41, "y": 1 },
+          { "x": 42, "y": 1 },
+          { "x": 43, "y": 1 },
+          { "x": 44, "y": 1 },
+          { "x": 45, "y": 1 },
+          { "x": 46, "y": 1 },
+          { "x": 47, "y": 1 },
+          { "x": 48, "y": 1 },
+          { "x": 49, "y": 1 },
+          { "x": 50, "y": 1 },
+          { "x": 51, "y": 1 },
+          { "x": 52, "y": 1 },
+          { "x": 53, "y": 1 },
+          { "x": 54, "y": 1 },
+          { "x": 55, "y": 1 },
+          { "x": 56, "y": 1 },
+          { "x": 57, "y": 1 },
+          { "x": 58, "y": 1 },
+          { "x": 59, "y": 1 },
+          { "x": 60, "y": 1 },
+          { "x": 61, "y": 1 },
+          { "x": 62, "y": 1 },
+          { "x": 63, "y": 1 },
+          { "x": 64, "y": 1 },
+          { "x": 65, "y": 1 },
+          { "x": 66, "y": 1 },
+          { "x": 67, "y": 1 },
+          { "x": 68, "y": 1 },
+          { "x": 69, "y": 1 },
+          { "x": 70, "y": 1 },
+          { "x": 71, "y": 1 },
+          { "x": 72, "y": 1 },
+          { "x": 73, "y": 1 },
+          { "x": 74, "y": 1 },
+          { "x": 75, "y": 1 },
+          { "x": 76, "y": 1 },
+          { "x": 77, "y": 1 },
+          { "x": 78, "y": 1 },
+          { "x": 79, "y": 1 },
+          { "x": 80, "y": 1 },
+          { "x": 81, "y": 1 },
+          { "x": 82, "y": 1 },
+          { "x": 83, "y": 1 },
+          { "x": 84, "y": 1 },
+          { "x": 85, "y": 1 },
+          { "x": 86, "y": 1 },
+          { "x": 87, "y": 1 },
+          { "x": 88, "y": 1 },
+          { "x": 89, "y": 1 },
+          { "x": 90, "y": 1 },
+          { "x": 91, "y": 1 },
+          { "x": 92, "y": 1 },
+          { "x": 93, "y": 1 },
+          { "x": 94, "y": 1 },
+          { "x": 95, "y": 1 },
+          { "x": 96, "y": 1 },
+          { "x": 97, "y": 1 },
+          { "x": 98, "y": 1 },
+          { "x": 99, "y": 1 },
+          { "x": 100, "y": 1 },
+          { "x": 101, "y": 1 },
+          { "x": 102, "y": 1 },
+          { "x": 103, "y": 1 },
+          { "x": 104, "y": 1 },
+          { "x": 105, "y": 1 },
+          { "x": 106, "y": 1 },
+          { "x": 107, "y": 1 },
+          { "x": 108, "y": 1 },
+          { "x": 109, "y": 1 },
+          { "x": 110, "y": 1 },
+          { "x": 111, "y": 1 },
+          { "x": 112, "y": 1 },
+          { "x": 113, "y": 1 },
+          { "x": 114, "y": 1 },
+          { "x": 115, "y": 1 },
+          { "x": 116, "y": 1 },
+          { "x": 117, "y": 1 },
+          { "x": 118, "y": 1 },
+          { "x": 119, "y": 1 },
+          { "x": 120, "y": 1 },
+          { "x": 121, "y": 1 },
+          { "x": 122, "y": 1 },
+          { "x": 123, "y": 1 },
+          { "x": 124, "y": 1 },
+          { "x": 125, "y": 1 },
+          { "x": 126, "y": 1 },
+          { "x": 127, "y": 1 },
+          { "x": 128, "y": 1 },
+          { "x": 129, "y": 1 },
+          { "x": 130, "y": 1 },
+          { "x": 131, "y": 1 },
+          { "x": 132, "y": 1 },
+          { "x": 133, "y": 1 },
+          { "x": 134, "y": 1 },
+          { "x": 135, "y": 1 },
+          { "x": 136, "y": 1 },
+          { "x": 137, "y": 1 },
+          { "x": 138, "y": 1 },
+          { "x": 139, "y": 1 },
+          { "x": 140, "y": 1 },
+          { "x": 141, "y": 1 },
+          { "x": 142, "y": 1 },
+          { "x": 143, "y": 1 },
+          { "x": 144, "y": 1 },
+          { "x": 145, "y": 1 },
+          { "x": 146, "y": 1 },
+          { "x": 147, "y": 1 },
+          { "x": 148, "y": 1 },
+          { "x": 149, "y": 1 },
+          { "x": 150, "y": 1 },
+          { "x": 151, "y": 1 },
+          { "x": 152, "y": 1 },
+          { "x": 153, "y": 1 },
+          { "x": 154, "y": 1 },
+          { "x": 155, "y": 1 },
+          { "x": 156, "y": 1 },
+          { "x": 157, "y": 1 },
+          { "x": 158, "y": 1 },
+          { "x": 159, "y": 1 },
+          { "x": 160, "y": 1 },
+          { "x": 161, "y": 1 },
+          { "x": 162, "y": 1 },
+          { "x": 163, "y": 1 },
+          { "x": 164, "y": 1 },
+          { "x": 165, "y": 1 },
+          { "x": 166, "y": 1 },
+          { "x": 167, "y": 1 },
+          { "x": 168, "y": 1 },
+          { "x": 169, "y": 1 },
+          { "x": 170, "y": 1 },
+          { "x": 171, "y": 1 },
+          { "x": 172, "y": 1 },
+          { "x": 173, "y": 1 },
+          { "x": 174, "y": 1 },
+          { "x": 175, "y": 1 },
+          { "x": 176, "y": 1 },
+          { "x": 177, "y": 1 },
+          { "x": 178, "y": 1 },
+          { "x": 179, "y": 1 },
+          { "x": 180, "y": 1 },
+          { "x": 181, "y": 1 },
+          { "x": 182, "y": 1 },
+          { "x": 183, "y": 1 },
+          { "x": 184, "y": 1 },
+          { "x": 185, "y": 1 },
+          { "x": 186, "y": 1 },
+          { "x": 187, "y": 1 },
+          { "x": 188, "y": 1 },
+          { "x": 189, "y": 1 },
+          { "x": 190, "y": 1 },
+          { "x": 191, "y": 1 },
+          { "x": 192, "y": 1 },
+          { "x": 193, "y": 1 },
+          { "x": 194, "y": 1 },
+          { "x": 195, "y": 1 },
+          { "x": 196, "y": 1 },
+          { "x": 197, "y": 1 },
+          { "x": 198, "y": 1 },
+          { "x": 199, "y": 1 },
+          { "x": 200, "y": 1 },
+          { "x": 201, "y": 1 },
+          { "x": 202, "y": 1 },
+          { "x": 203, "y": 1 },
+          { "x": 204, "y": 1 },
+          { "x": 205, "y": 1 },
+          { "x": 206, "y": 1 },
+          { "x": 207, "y": 1 },
+          { "x": 208, "y": 1 },
+          { "x": 209, "y": 1 },
+          { "x": 210, "y": 1 },
+          { "x": 211, "y": 1 },
+          { "x": 212, "y": 1 },
+          { "x": 213, "y": 1 },
+          { "x": 214, "y": 1 },
+          { "x": 215, "y": 1 },
+          { "x": 216, "y": 1 },
+          { "x": 217, "y": 1 },
+          { "x": 218, "y": 1 },
+          { "x": 219, "y": 1 },
+          { "x": 220, "y": 1 },
+          { "x": 221, "y": 1 },
+          { "x": 222, "y": 1 },
+          { "x": 223, "y": 1 },
+          { "x": 224, "y": 1 },
+          { "x": 225, "y": 1 },
+          { "x": 226, "y": 1 },
+          { "x": 227, "y": 1 },
+          { "x": 228, "y": 1 },
+          { "x": 229, "y": 1 },
+          { "x": 230, "y": 1 },
+          { "x": 231, "y": 1 },
+          { "x": 232, "y": 1 },
+          { "x": 233, "y": 1 },
+          { "x": 234, "y": 1 },
+          { "x": 235, "y": 1 },
+          { "x": 236, "y": 1 },
+          { "x": 237, "y": 1 },
+          { "x": 238, "y": 1 },
+          { "x": 239, "y": 1 },
+          { "x": 240, "y": 1 },
+          { "x": 241, "y": 1 },
+          { "x": 242, "y": 1 },
+          { "x": 243, "y": 1 },
+          { "x": 244, "y": 1 },
+          { "x": 245, "y": 1 },
+          { "x": 246, "y": 1 },
+          { "x": 247, "y": 1 },
+          { "x": 248, "y": 1 },
+          { "x": 249, "y": 1 },
+          { "x": 250, "y": 1 },
+          { "x": 251, "y": 1 },
+          { "x": 252, "y": 1 },
+          { "x": 253, "y": 1 },
+          { "x": 254, "y": 1 },
+          { "x": 255, "y": 1 },
+          { "x": 256, "y": 1 },
+          { "x": 257, "y": 1 }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "lookup capacity exceeded",
+    "valid": false,
+    "patches": [
+      {
+        "path": "/profiles/0/accel_x/mode",
+        "value": "lookup"
+      },
+      {
+        "path": "/profiles/0/accel_x/lookup_table",
+        "value": [
+          { "x": 1, "y": 1 },
+          { "x": 2, "y": 1 },
+          { "x": 3, "y": 1 },
+          { "x": 4, "y": 1 },
+          { "x": 5, "y": 1 },
+          { "x": 6, "y": 1 },
+          { "x": 7, "y": 1 },
+          { "x": 8, "y": 1 },
+          { "x": 9, "y": 1 },
+          { "x": 10, "y": 1 },
+          { "x": 11, "y": 1 },
+          { "x": 12, "y": 1 },
+          { "x": 13, "y": 1 },
+          { "x": 14, "y": 1 },
+          { "x": 15, "y": 1 },
+          { "x": 16, "y": 1 },
+          { "x": 17, "y": 1 },
+          { "x": 18, "y": 1 },
+          { "x": 19, "y": 1 },
+          { "x": 20, "y": 1 },
+          { "x": 21, "y": 1 },
+          { "x": 22, "y": 1 },
+          { "x": 23, "y": 1 },
+          { "x": 24, "y": 1 },
+          { "x": 25, "y": 1 },
+          { "x": 26, "y": 1 },
+          { "x": 27, "y": 1 },
+          { "x": 28, "y": 1 },
+          { "x": 29, "y": 1 },
+          { "x": 30, "y": 1 },
+          { "x": 31, "y": 1 },
+          { "x": 32, "y": 1 },
+          { "x": 33, "y": 1 },
+          { "x": 34, "y": 1 },
+          { "x": 35, "y": 1 },
+          { "x": 36, "y": 1 },
+          { "x": 37, "y": 1 },
+          { "x": 38, "y": 1 },
+          { "x": 39, "y": 1 },
+          { "x": 40, "y": 1 },
+          { "x": 41, "y": 1 },
+          { "x": 42, "y": 1 },
+          { "x": 43, "y": 1 },
+          { "x": 44, "y": 1 },
+          { "x": 45, "y": 1 },
+          { "x": 46, "y": 1 },
+          { "x": 47, "y": 1 },
+          { "x": 48, "y": 1 },
+          { "x": 49, "y": 1 },
+          { "x": 50, "y": 1 },
+          { "x": 51, "y": 1 },
+          { "x": 52, "y": 1 },
+          { "x": 53, "y": 1 },
+          { "x": 54, "y": 1 },
+          { "x": 55, "y": 1 },
+          { "x": 56, "y": 1 },
+          { "x": 57, "y": 1 },
+          { "x": 58, "y": 1 },
+          { "x": 59, "y": 1 },
+          { "x": 60, "y": 1 },
+          { "x": 61, "y": 1 },
+          { "x": 62, "y": 1 },
+          { "x": 63, "y": 1 },
+          { "x": 64, "y": 1 },
+          { "x": 65, "y": 1 },
+          { "x": 66, "y": 1 },
+          { "x": 67, "y": 1 },
+          { "x": 68, "y": 1 },
+          { "x": 69, "y": 1 },
+          { "x": 70, "y": 1 },
+          { "x": 71, "y": 1 },
+          { "x": 72, "y": 1 },
+          { "x": 73, "y": 1 },
+          { "x": 74, "y": 1 },
+          { "x": 75, "y": 1 },
+          { "x": 76, "y": 1 },
+          { "x": 77, "y": 1 },
+          { "x": 78, "y": 1 },
+          { "x": 79, "y": 1 },
+          { "x": 80, "y": 1 },
+          { "x": 81, "y": 1 },
+          { "x": 82, "y": 1 },
+          { "x": 83, "y": 1 },
+          { "x": 84, "y": 1 },
+          { "x": 85, "y": 1 },
+          { "x": 86, "y": 1 },
+          { "x": 87, "y": 1 },
+          { "x": 88, "y": 1 },
+          { "x": 89, "y": 1 },
+          { "x": 90, "y": 1 },
+          { "x": 91, "y": 1 },
+          { "x": 92, "y": 1 },
+          { "x": 93, "y": 1 },
+          { "x": 94, "y": 1 },
+          { "x": 95, "y": 1 },
+          { "x": 96, "y": 1 },
+          { "x": 97, "y": 1 },
+          { "x": 98, "y": 1 },
+          { "x": 99, "y": 1 },
+          { "x": 100, "y": 1 },
+          { "x": 101, "y": 1 },
+          { "x": 102, "y": 1 },
+          { "x": 103, "y": 1 },
+          { "x": 104, "y": 1 },
+          { "x": 105, "y": 1 },
+          { "x": 106, "y": 1 },
+          { "x": 107, "y": 1 },
+          { "x": 108, "y": 1 },
+          { "x": 109, "y": 1 },
+          { "x": 110, "y": 1 },
+          { "x": 111, "y": 1 },
+          { "x": 112, "y": 1 },
+          { "x": 113, "y": 1 },
+          { "x": 114, "y": 1 },
+          { "x": 115, "y": 1 },
+          { "x": 116, "y": 1 },
+          { "x": 117, "y": 1 },
+          { "x": 118, "y": 1 },
+          { "x": 119, "y": 1 },
+          { "x": 120, "y": 1 },
+          { "x": 121, "y": 1 },
+          { "x": 122, "y": 1 },
+          { "x": 123, "y": 1 },
+          { "x": 124, "y": 1 },
+          { "x": 125, "y": 1 },
+          { "x": 126, "y": 1 },
+          { "x": 127, "y": 1 },
+          { "x": 128, "y": 1 },
+          { "x": 129, "y": 1 },
+          { "x": 130, "y": 1 },
+          { "x": 131, "y": 1 },
+          { "x": 132, "y": 1 },
+          { "x": 133, "y": 1 },
+          { "x": 134, "y": 1 },
+          { "x": 135, "y": 1 },
+          { "x": 136, "y": 1 },
+          { "x": 137, "y": 1 },
+          { "x": 138, "y": 1 },
+          { "x": 139, "y": 1 },
+          { "x": 140, "y": 1 },
+          { "x": 141, "y": 1 },
+          { "x": 142, "y": 1 },
+          { "x": 143, "y": 1 },
+          { "x": 144, "y": 1 },
+          { "x": 145, "y": 1 },
+          { "x": 146, "y": 1 },
+          { "x": 147, "y": 1 },
+          { "x": 148, "y": 1 },
+          { "x": 149, "y": 1 },
+          { "x": 150, "y": 1 },
+          { "x": 151, "y": 1 },
+          { "x": 152, "y": 1 },
+          { "x": 153, "y": 1 },
+          { "x": 154, "y": 1 },
+          { "x": 155, "y": 1 },
+          { "x": 156, "y": 1 },
+          { "x": 157, "y": 1 },
+          { "x": 158, "y": 1 },
+          { "x": 159, "y": 1 },
+          { "x": 160, "y": 1 },
+          { "x": 161, "y": 1 },
+          { "x": 162, "y": 1 },
+          { "x": 163, "y": 1 },
+          { "x": 164, "y": 1 },
+          { "x": 165, "y": 1 },
+          { "x": 166, "y": 1 },
+          { "x": 167, "y": 1 },
+          { "x": 168, "y": 1 },
+          { "x": 169, "y": 1 },
+          { "x": 170, "y": 1 },
+          { "x": 171, "y": 1 },
+          { "x": 172, "y": 1 },
+          { "x": 173, "y": 1 },
+          { "x": 174, "y": 1 },
+          { "x": 175, "y": 1 },
+          { "x": 176, "y": 1 },
+          { "x": 177, "y": 1 },
+          { "x": 178, "y": 1 },
+          { "x": 179, "y": 1 },
+          { "x": 180, "y": 1 },
+          { "x": 181, "y": 1 },
+          { "x": 182, "y": 1 },
+          { "x": 183, "y": 1 },
+          { "x": 184, "y": 1 },
+          { "x": 185, "y": 1 },
+          { "x": 186, "y": 1 },
+          { "x": 187, "y": 1 },
+          { "x": 188, "y": 1 },
+          { "x": 189, "y": 1 },
+          { "x": 190, "y": 1 },
+          { "x": 191, "y": 1 },
+          { "x": 192, "y": 1 },
+          { "x": 193, "y": 1 },
+          { "x": 194, "y": 1 },
+          { "x": 195, "y": 1 },
+          { "x": 196, "y": 1 },
+          { "x": 197, "y": 1 },
+          { "x": 198, "y": 1 },
+          { "x": 199, "y": 1 },
+          { "x": 200, "y": 1 },
+          { "x": 201, "y": 1 },
+          { "x": 202, "y": 1 },
+          { "x": 203, "y": 1 },
+          { "x": 204, "y": 1 },
+          { "x": 205, "y": 1 },
+          { "x": 206, "y": 1 },
+          { "x": 207, "y": 1 },
+          { "x": 208, "y": 1 },
+          { "x": 209, "y": 1 },
+          { "x": 210, "y": 1 },
+          { "x": 211, "y": 1 },
+          { "x": 212, "y": 1 },
+          { "x": 213, "y": 1 },
+          { "x": 214, "y": 1 },
+          { "x": 215, "y": 1 },
+          { "x": 216, "y": 1 },
+          { "x": 217, "y": 1 },
+          { "x": 218, "y": 1 },
+          { "x": 219, "y": 1 },
+          { "x": 220, "y": 1 },
+          { "x": 221, "y": 1 },
+          { "x": 222, "y": 1 },
+          { "x": 223, "y": 1 },
+          { "x": 224, "y": 1 },
+          { "x": 225, "y": 1 },
+          { "x": 226, "y": 1 },
+          { "x": 227, "y": 1 },
+          { "x": 228, "y": 1 },
+          { "x": 229, "y": 1 },
+          { "x": 230, "y": 1 },
+          { "x": 231, "y": 1 },
+          { "x": 232, "y": 1 },
+          { "x": 233, "y": 1 },
+          { "x": 234, "y": 1 },
+          { "x": 235, "y": 1 },
+          { "x": 236, "y": 1 },
+          { "x": 237, "y": 1 },
+          { "x": 238, "y": 1 },
+          { "x": 239, "y": 1 },
+          { "x": 240, "y": 1 },
+          { "x": 241, "y": 1 },
+          { "x": 242, "y": 1 },
+          { "x": 243, "y": 1 },
+          { "x": 244, "y": 1 },
+          { "x": 245, "y": 1 },
+          { "x": 246, "y": 1 },
+          { "x": 247, "y": 1 },
+          { "x": 248, "y": 1 },
+          { "x": 249, "y": 1 },
+          { "x": 250, "y": 1 },
+          { "x": 251, "y": 1 },
+          { "x": 252, "y": 1 },
+          { "x": 253, "y": 1 },
+          { "x": 254, "y": 1 },
+          { "x": 255, "y": 1 },
+          { "x": 256, "y": 1 },
+          { "x": 257, "y": 1 },
+          { "x": 258, "y": 1 }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "lookup requires two points",
+    "valid": false,
+    "patches": [
+      {
+        "path": "/profiles/0/accel_x/mode",
+        "value": "lookup"
+      },
+      {
+        "path": "/profiles/0/accel_x/lookup_table",
+        "value": [
+          { "x": 1, "y": 1 }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "stored inactive LUT cannot overflow",
+    "valid": false,
+    "patches": [
+      {
+        "path": "/profiles/0/accel_x/lookup_table",
+        "value": [
+          { "x": 1e+40, "y": 1 }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "max UTF16 name",
+    "valid": true,
+    "patches": [
+      {
+        "path": "/profiles/0/name",
+        "value": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      }
+    ]
+  },
+  {
+    "name": "excess UTF16 name",
+    "valid": false,
+    "patches": [
+      {
+        "path": "/profiles/0/name",
+        "value": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      }
+    ]
+  },
+  {
+    "name": "supplementary boundary",
+    "valid": true,
+    "patches": [
+      {
+        "path": "/profiles/0/name",
+        "value": "\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00a"
+      }
+    ]
+  },
+  {
+    "name": "supplementary overflow",
+    "valid": false,
+    "patches": [
+      {
+        "path": "/profiles/0/name",
+        "value": "\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00"
+      }
+    ]
+  },
+  {
+    "name": "embedded NUL",
+    "valid": false,
+    "patches": [
+      {
+        "path": "/profiles/0/name",
+        "value": "a\u0000b"
+      }
+    ]
+  },
+  {
+    "name": "empty name",
+    "valid": false,
+    "patches": [
+      {
+        "path": "/profiles/0/name",
+        "value": " "
+      }
+    ]
+  },
+  {
+    "name": "device dpi 2147483647",
+    "valid": true,
+    "patches": [
+      {
+        "path": "/devices",
+        "value": [
+          {
+            "id": "mouse",
+            "profile_id": null,
+            "dpi": 2147483647
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "device dpi 2147483648",
+    "valid": false,
+    "patches": [
+      {
+        "path": "/devices",
+        "value": [
+          {
+            "id": "mouse",
+            "profile_id": null,
+            "dpi": 2147483648
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "device polling_rate -1",
+    "valid": false,
+    "patches": [
+      {
+        "path": "/devices",
+        "value": [
+          {
+            "id": "mouse",
+            "profile_id": null,
+            "polling_rate": -1
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "device polling_rate 1.5",
+    "valid": false,
+    "patches": [
+      {
+        "path": "/devices",
+        "value": [
+          {
+            "id": "mouse",
+            "profile_id": null,
+            "polling_rate": 1.5
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "device dpi None",
+    "valid": false,
+    "patches": [
+      {
+        "path": "/devices",
+        "value": [
+          {
+            "id": "mouse",
+            "profile_id": null,
+            "dpi": null
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "device clamp_min -1",
+    "valid": false,
+    "patches": [
+      {
+        "path": "/devices",
+        "value": [
+          {
+            "id": "mouse",
+            "profile_id": null,
+            "clamp_min": -1
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "device clamp_max 0.01",
+    "valid": false,
+    "patches": [
+      {
+        "path": "/devices",
+        "value": [
+          {
+            "id": "mouse",
+            "profile_id": null,
+            "clamp_max": 0.01
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "device id ddddddddddddddddddddddddd",
+    "valid": true,
+    "patches": [
+      {
+        "path": "/devices",
+        "value": [
+          {
+            "id": "ddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+            "profile_id": null
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "device id ddddddddddddddddddddddddd",
+    "valid": false,
+    "patches": [
+      {
+        "path": "/devices",
+        "value": [
+          {
+            "id": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+            "profile_id": null
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "device ID embedded NUL",
+    "valid": false,
+    "patches": [
+      {
+        "path": "/devices",
+        "value": [
+          {
+            "id": "a\u0000b",
+            "profile_id": null
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "device profile_id missing",
+    "valid": false,
+    "patches": [
+      {
+        "path": "/devices",
+        "value": [
+          {
+            "id": "mouse",
+            "profile_id": "missing"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "device profile_id Default Profile",
+    "valid": true,
+    "patches": [
+      {
+        "path": "/devices",
+        "value": [
+          {
+            "id": "mouse",
+            "profile_id": "Default Profile"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "duplicate devices",
+    "valid": false,
+    "patches": [
+      {
+        "path": "/devices",
+        "value": [
+          {
+            "id": "mouse",
+            "profile_id": null
+          },
+          {
+            "id": "mouse",
+            "profile_id": null
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "case sensitive wire device IDs",
+    "valid": true,
+    "patches": [
+      {
+        "path": "/devices",
+        "value": [
+          {
+            "id": "mouse",
+            "profile_id": null
+          },
+          {
+            "id": "MOUSE",
+            "profile_id": null
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "inherited clamp ordering",
+    "valid": false,
+    "patches": [
+      {
+        "path": "/default_device_config",
+        "value": {
+          "clamp_min": 2,
+          "clamp_max": 4
+        }
+      },
+      {
+        "path": "/devices",
+        "value": [
+          {
+            "id": "mouse",
+            "profile_id": null,
+            "clamp_max": 1
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "valid inherited clamps",
+    "valid": true,
+    "patches": [
+      {
+        "path": "/default_device_config",
+        "value": {
+          "clamp_min": 2,
+          "clamp_max": 4
+        }
+      },
+      {
+        "path": "/devices",
+        "value": [
+          {
+            "id": "mouse",
+            "profile_id": null
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "default signed overflow",
+    "valid": false,
+    "patches": [
+      {
+        "path": "/default_device_config",
+        "value": {
+          "polling_rate": 2147483648
+        }
+      }
+    ]
+  },
+  {
+    "name": "negative default clamp",
+    "valid": false,
+    "patches": [
+      {
+        "path": "/default_device_config",
+        "value": {
+          "clamp_min": -1
+        }
+      }
+    ]
+  }
+]
