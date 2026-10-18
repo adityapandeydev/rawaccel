@@ -31,3 +31,56 @@ test('all three generated graph quantities stay available for Synchronous Gain',
   assert.ok(data.length > 100);
   assert.ok(data.every(point => Object.values(point).every(Number.isFinite)));
 });
+
+const reference = readJson('../src-tauri/tests/fixtures/math/reference.json');
+let maximumAbsoluteError = 0;
+let maximumRelativeError = 0;
+const floatBuffer = new DataView(new ArrayBuffer(4));
+function floatBits(value) {
+  floatBuffer.setFloat32(0, value);
+  return floatBuffer.getUint32(0);
+}
+for (const fixture of reference.cases) {
+  test(`C++ parity: ${fixture.name}`, () => {
+    assert.equal(fixture.xs.length, fixture.expected.length);
+    assert.equal(fixture.table_bits.length, fixture.args.mode === 'synchronous' && fixture.args.gain ? 97 : 0);
+    const evaluate = createEvaluator(fixture.args);
+    for (let i = 0; i < fixture.table_bits.length; i++) {
+      const e = Math.floor(i / 8) - 3;
+      const x = (i % 8 + 8) * 2 ** e / 8;
+      assert.equal(floatBits(evaluate(x) * x), fixture.table_bits[i], `packed sample ${i}`);
+    }
+    for (const index of fixture.xs.map((_, i) => i).reverse()) {
+      const x = fixture.xs[index];
+      const expected = fixture.expected[index];
+      const actual = evaluate(x);
+      if (typeof expected === 'string') {
+        assert.equal(String(actual), expected, `speed ${x}`);
+      } else {
+        const error = Math.abs(actual - expected);
+        maximumAbsoluteError = Math.max(maximumAbsoluteError, error);
+        if (expected !== 0) maximumRelativeError = Math.max(maximumRelativeError, error / Math.abs(expected));
+        const tolerance = reference.absolute_tolerance + reference.relative_tolerance * Math.abs(expected);
+        assert.ok(Number.isFinite(actual) && Math.abs(actual - expected) <= tolerance,
+          `speed ${x}: actual ${actual}, C++ ${expected}, tolerance ${tolerance}`);
+      }
+    }
+  });
+}
+
+test('Tiered Natural preserves velocity and slope continuity at the second transition', () => {
+  for (const gain of [false, true]) {
+    const args = { ...structuredClone(defaults), mode: 'tiered', t_type: 'natural', gain,
+      tiered_input_offset1: 5, tiered_input_offset2: 30 };
+    const evaluate = createEvaluator(args);
+    const x = args.tiered_input_offset2;
+    const epsilon = 1e-5;
+    const v = speed => speed * evaluate(speed);
+    assert.ok(Math.abs(evaluate(x - epsilon) - evaluate(x + epsilon)) < 1e-5);
+    assert.ok(Math.abs((v(x) - v(x - epsilon)) / epsilon - (v(x + epsilon) - v(x)) / epsilon) < 1e-5);
+  }
+});
+
+test('report measured C++ preview comparison errors', context => {
+  context.diagnostic(`${reference.cases.length} configurations: max absolute error ${maximumAbsoluteError}, max relative error ${maximumRelativeError}`);
+});

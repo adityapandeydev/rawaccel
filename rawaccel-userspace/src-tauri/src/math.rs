@@ -1237,7 +1237,9 @@ pub fn evaluate_curve(args: &accel_args, x: f64) -> f64 {
 
 // ── Mathematical Reference & Parity Test Suite ───────────────────────────
 
-
+#[cfg(test)]
+#[path = "math_reference_tests.rs"]
+mod reference_tests;
 
 #[cfg(test)]
 mod tests {
