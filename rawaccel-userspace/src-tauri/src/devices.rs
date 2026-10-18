@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 use std::ffi::OsString;
 use std::os::windows::ffi::OsStringExt;
+use std::os::windows::io::{FromRawHandle, OwnedHandle};
 use windows::core::PCWSTR;
 use windows::Win32::Devices::DeviceAndDriverInstallation::{
     CM_Get_Device_Interface_PropertyW, CR_BUFFER_SMALL, CR_SUCCESS,
@@ -11,7 +12,7 @@ use windows::Win32::Devices::HumanInterfaceDevice::{
 use windows::Win32::Devices::Properties::{
     DEVPKEY_Device_InstanceId, DEVPROPTYPE, DEVPROP_TYPE_STRING,
 };
-use windows::Win32::Foundation::{CloseHandle, INVALID_HANDLE_VALUE};
+
 use windows::Win32::Storage::FileSystem::{
     CreateFileW, FILE_FLAGS_AND_ATTRIBUTES, FILE_SHARE_READ, FILE_SHARE_WRITE, OPEN_EXISTING,
 };
@@ -141,7 +142,9 @@ pub fn get_connected_devices() -> Vec<DeviceInfo> {
             );
 
             if let Ok(hid_dev_object) = hid_dev_object_res {
-                if hid_dev_object != INVALID_HANDLE_VALUE {
+                if !hid_dev_object.is_invalid() {
+                    // Keep ownership in scope across every exit and string conversion.
+                    let _owned = OwnedHandle::from_raw_handle(hid_dev_object.0);
                     let mut product_buf = [0u16; HID_STR_MAX_LEN];
                     if HidD_GetProductString(
                         hid_dev_object,
@@ -177,7 +180,6 @@ pub fn get_connected_devices() -> Vec<DeviceInfo> {
                             name_str = product_sv;
                         }
                     }
-                    let _ = CloseHandle(hid_dev_object);
                 }
             }
         }

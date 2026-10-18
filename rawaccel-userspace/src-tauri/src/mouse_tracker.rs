@@ -9,8 +9,8 @@ use windows::Win32::UI::Input::{
     RIDEV_INPUTSINK, RID_INPUT,
 };
 use windows::Win32::UI::WindowsAndMessaging::{
-    CreateWindowExW, DefWindowProcW, DispatchMessageW, GetMessageW, RegisterClassW, HWND_MESSAGE,
-    MSG, WNDCLASSW,
+    CreateWindowExW, DefWindowProcW, DestroyWindow, DispatchMessageW, GetMessageW, RegisterClassW,
+    HWND_MESSAGE, MSG, WNDCLASSW,
 };
 
 #[derive(Clone, serde::Serialize)]
@@ -115,14 +115,28 @@ pub fn start(app_handle: AppHandle) {
                 RegisterRawInputDevices(&[rid], std::mem::size_of::<RAWINPUTDEVICE>() as u32)
             {
                 eprintln!("Failed to register raw input devices: {:?}", e);
+                let _ = DestroyWindow(hwnd);
                 return;
             }
 
             // Run message loop
             let mut msg = MSG::default();
-            while GetMessageW(&mut msg, None, 0, 0).into() {
-                DispatchMessageW(&msg);
+            loop {
+                match GetMessageW(&mut msg, None, 0, 0).0 {
+                    -1 => {
+                        eprintln!(
+                            "Mouse tracker message loop failed: {}",
+                            windows::core::Error::from_thread()
+                        );
+                        break;
+                    }
+                    0 => break, // WM_QUIT
+                    _ => {
+                        DispatchMessageW(&msg);
+                    }
+                }
             }
+            let _ = DestroyWindow(hwnd);
         }
     });
 
