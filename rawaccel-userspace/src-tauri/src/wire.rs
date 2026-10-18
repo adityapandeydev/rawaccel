@@ -149,3 +149,5 @@ wire_struct!(
     modifier_data_size,
     device_data_size
 );
+
+wire_struct!(version_t, major, minor, patch);

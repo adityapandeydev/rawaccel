@@ -39,9 +39,9 @@ pub fn open_driver() -> Result<OwnedHandle, String> {
     }
 }
 
-pub fn get_version() -> Result<(i32, i32, i32), String> {
+pub fn get_version() -> Result<crate::models::version_t, String> {
     let handle = open_driver()?;
-    let mut version = (0i32, 0i32, 0i32);
+    let mut version = crate::models::version_t::default();
     let mut bytes_returned = 0u32;
 
     let success = unsafe {
@@ -51,18 +51,14 @@ pub fn get_version() -> Result<(i32, i32, i32), String> {
             None,
             0,
             Some(&mut version as *mut _ as *mut _),
-            size_of::<(i32, i32, i32)>() as u32,
+            size_of::<crate::models::version_t>() as u32,
             Some(&mut bytes_returned),
             None,
         )
     };
 
     success.map_err(|error| ioctl_error("get driver version", error))?;
-    if bytes_returned > 0 {
-        Ok(version)
-    } else {
-        Err("Failed to get driver version".to_string())
-    }
+    checked_version(version, bytes_returned)
 }
 
 pub fn apply_config(config: &crate::config::AppConfig) -> Result<(), String> {
@@ -88,6 +84,22 @@ pub fn apply_config(config: &crate::config::AppConfig) -> Result<(), String> {
     }
 }
 
+fn checked_version(
+    version: crate::models::version_t,
+    returned: u32,
+) -> Result<crate::models::version_t, String> {
+    let expected = size_of::<crate::models::version_t>() as u32;
+    if returned != expected {
+        return Err(format!(
+            "Malformed driver version response: expected {expected} bytes, received {returned}"
+        ));
+    }
+    if version.major < 0 || version.minor < 0 || version.patch < 0 {
+        return Err("Malformed driver version response: negative version component".into());
+    }
+    Ok(version)
+}
+
 fn ioctl_error(action: &str, error: windows::core::Error) -> String {
     format!("Failed to {action}: {error}")
 }
@@ -95,6 +107,22 @@ fn ioctl_error(action: &str, error: windows::core::Error) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn version_response_requires_the_complete_c_layout_record() {
+        use crate::models::version_t;
+        assert_eq!(size_of::<version_t>(), 12);
+        assert_eq!(std::mem::align_of::<version_t>(), 4);
+        let v = version_t {
+            major: 1,
+            minor: 8,
+            patch: 0,
+        };
+        assert_eq!(checked_version(v, 12).unwrap(), v);
+        for size in (0..12).chain([13, u32::MAX]) {
+            assert!(checked_version(v, size).is_err(), "{size}");
+        }
+        assert!(checked_version(version_t { major: -1, ..v }, 12).is_err());
+    }
     #[test]
     fn ioctl_error_retains_the_original_windows_error() {
         let captured = windows::core::Error::from_hresult(windows::core::HRESULT::from_win32(5));

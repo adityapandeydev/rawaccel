@@ -319,3 +319,12 @@ pub struct io_base {
     pub modifier_data_size: u32,
     pub device_data_size: u32,
 }
+
+/// Exact response written by common/rawaccel-version.h (three C int fields).
+#[repr(C)]
+#[derive(Copy, Clone, Debug, Default, PartialEq, Eq)]
+pub struct version_t {
+    pub major: i32,
+    pub minor: i32,
+    pub patch: i32,
+}
