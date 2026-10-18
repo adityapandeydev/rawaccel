@@ -1,3 +1,4 @@
+mod validation;
 mod apply;
 mod migration;
 mod settings_defaults;

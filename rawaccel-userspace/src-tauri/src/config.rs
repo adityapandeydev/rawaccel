@@ -151,6 +151,7 @@ impl AppConfig {
             return Err("At least one profile is required".to_string());
         }
         if let Some(defaults) = &self.default_device_config {
+            crate::validation::device_numbers(defaults.dpi, defaults.polling_rate, defaults.clamp_min, defaults.clamp_max, models::time_clamp::default())?;
             let native = defaults.to_native();
             if defaults.dpi > i32::MAX as u32 || defaults.polling_rate > i32::MAX as u32
                 || !defaults.clamp_min.is_finite() || !defaults.clamp_max.is_finite()
@@ -183,12 +184,15 @@ impl AppConfig {
 
             validate_accel_args(&profile.name, "X", &profile.accel_x)?;
 
-            if !profile.speed_processor_args.whole {
-                validate_accel_args(&profile.name, "Y", &profile.accel_y)?;
-            }
+            // init_data precomputes both curves, including Y in Combined mode.
+            validate_accel_args(&profile.name, "Y", &profile.accel_y)?;
+            crate::validation::profile_numbers(profile)?;
         }
 
+        let inherited = self.default_device_config.as_ref().map(|d| d.to_native().clamp).unwrap_or_default();
         for dev in &self.devices {
+            crate::validation::device_numbers(dev.dpi, dev.polling_rate, dev.clamp_min, dev.clamp_max, inherited)
+                .map_err(|error| format!("Device '{}': {error}", dev.id))?;
             if let Some(ref pid) = dev.profile_id {
                 if !self.profiles.iter().any(|p| p.name == *pid) {
                     return Err(format!(
@@ -208,13 +212,9 @@ fn validate_lookup_table(
     axis: &str,
     args: &AppAccelArgs,
 ) -> Result<(), String> {
-    if args.mode != "lookup" {
-        return Ok(());
-    }
-
     let points = &args.lookup_table;
     let max_points = models::LUT_POINTS_CAPACITY;
-    if points.len() < 2 {
+    if args.mode == "lookup" && points.len() < 2 {
         return Err(format!(
             "Profile '{profile_name}' {axis} lookup table needs at least two points"
         ));
@@ -227,24 +227,24 @@ fn validate_lookup_table(
 
     let mut previous_x = 0.0;
     for (index, point) in points.iter().enumerate() {
-        if !point.x.is_finite() || !point.y.is_finite() {
+        if !point.x.is_finite() || !point.y.is_finite() || !(point.x as f32).is_finite() || !(point.y as f32).is_finite() {
             return Err(format!(
                 "Profile '{profile_name}' {axis} lookup point {} must contain finite numbers",
                 index + 1
             ));
         }
-        if point.x <= 0.0 {
+        if (point.x as f32) <= 0.0 {
             return Err(format!(
                 "Profile '{profile_name}' {axis} lookup point {} must have an input speed above zero",
                 index + 1
             ));
         }
-        if index > 0 && point.x <= previous_x {
+        if index > 0 && (point.x as f32) <= previous_x {
             return Err(format!(
                 "Profile '{profile_name}' {axis} lookup input speeds must be strictly increasing"
             ));
         }
-        previous_x = point.x;
+        previous_x = point.x as f32;
     }
 
     Ok(())
@@ -255,6 +255,19 @@ fn validate_accel_args(
     axis: &str,
     args: &AppAccelArgs,
 ) -> Result<(), String> {
+    crate::validation::accel_numbers(args).map_err(|error| format!("Profile '{profile_name}' {axis}: {error}"))?;
+    validate_lookup_table(profile_name, axis, args)?;
+    let requires_cap = args.mode == "jump" || (["classic", "linear", "power"].contains(&args.mode.as_str()) && args.cap_mode == "io");
+    if requires_cap && (args.cap.x == 0.0 || args.cap.y == 0.0) {
+        return Err(format!("Profile '{profile_name}' {axis}: both caps must be positive for this mode/cap style"));
+    }
+    if (["classic", "linear"].contains(&args.mode.as_str()) && args.cap_mode != "out" && args.cap.x > 0.0 && args.cap.x < args.input_offset)
+        || (args.mode == "power" && args.cap_mode != "in" && args.cap.y > 0.0 && args.cap.y < args.output_offset) {
+        return Err(format!("Profile '{profile_name}' {axis}: cap cannot be less than offset"));
+    }
+    if ["jump", "synchronous"].contains(&args.mode.as_str()) && !(0.0..=1.0).contains(&args.smooth) {
+        return Err(format!("Profile '{profile_name}' {axis}: smooth must be between 0 and 1"));
+    }
     if args.input_offset < 0.0 {
         return Err(format!("Profile '{profile_name}' {axis}: offset can not be negative"));
     }
@@ -277,6 +290,9 @@ fn validate_accel_args(
                 return Err(format!("Profile '{profile_name}' {axis}: offset can not be negative"));
             }
             if args.t_type == "linear" {
+                if !(args.tiered_input_offset1 + args.tiered_transition1).is_finite() || !(args.tiered_input_offset2 + args.tiered_transition2).is_finite() {
+                    return Err(format!("Profile '{profile_name}' {axis}: transition endpoints must be finite"));
+                }
                 if args.tiered_transition1 <= 0.0 || args.tiered_transition2 <= 0.0 {
                     return Err(format!("Profile '{profile_name}' {axis}: transition width must be positive"));
                 }
