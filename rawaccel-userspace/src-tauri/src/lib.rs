@@ -1,3 +1,5 @@
+mod driver_contract;
+mod stock_wire;
 mod driver_status;
 #[cfg(test)]
 mod abi_tests;
@@ -23,12 +25,10 @@ async fn get_driver_status() -> Result<driver_status::DriverStatus, String> {
 }
 
 #[tauri::command]
-fn apply_settings(settings_json: String) -> Result<apply::ApplyReport, String> {
-    apply::apply_with(
-        &settings_json,
-        driver::apply_config,
-        config::save_settings_to_disk,
-    )
+async fn apply_settings(settings_json: String) -> Result<apply::ApplyReport, String> {
+    tauri::async_runtime::spawn_blocking(move || apply::apply_with(
+        &settings_json, driver::apply_config, config::save_settings_to_disk,
+    )).await.map_err(|error| format!("Apply worker failed: {error}"))?
 }
 
 #[tauri::command]

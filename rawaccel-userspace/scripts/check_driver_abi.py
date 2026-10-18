@@ -49,9 +49,25 @@ def main():
     layout = subprocess.check_output([str(executable), str(output / "sentinel-packet-x64.hex"), str(output / "settings-packet-x64.hex")], text=True)
     # Canonicalize JSON to keep compiler output ordering out of snapshot comparisons.
     (output / "layout-x64.json").write_text(json.dumps(json.loads(layout), indent=2) + "\n", encoding="utf-8")
+    # Extract the pinned, reachable upstream commit into ignored build storage.
+    # Never modify common/ or check out another branch, and never fetch from the network.
+    pin = json.loads((crate / "tests/abi/stock-reference.json").read_text(encoding="utf-8"))
+    stock_headers = output / "stock-common"
+    stock_headers.mkdir(exist_ok=True)
+    names = subprocess.check_output(["git", "ls-tree", "-r", "--name-only", pin["commit"], "common"], cwd=app.parent, text=True).splitlines()
+    for name in names:
+        if Path(name).suffix in [".h", ".hpp"]:
+            relative = Path(name).relative_to("common")
+            target = stock_headers / relative
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_bytes(subprocess.check_output(["git", "show", f"{pin['commit']}:{name}"], cwd=app.parent))
+    stock_exe = output / "stock-abi-reference.exe"
+    subprocess.run([compiler, "/nologo", "/std:c++17", "/EHsc", "/W4", "/Od", f"/I{stock_headers}", str(crate / "tests/abi/stock-reference.cpp"), f"/Fe{stock_exe}", f"/Fo{output / 'stock-abi-reference.obj'}"], env=environment, cwd=output, check=True)
+    stock_layout = subprocess.check_output([str(stock_exe), str(output / "stock-settings-packet-x64.hex")], text=True)
+    (output / "stock-layout-x64.json").write_text(json.dumps(json.loads(stock_layout), indent=2) + "\n", encoding="utf-8")
     fixtures = crate / "tests/fixtures/abi"
     fixtures.mkdir(parents=True, exist_ok=True)
-    for name in ["layout-x64.json", "sentinel-packet-x64.hex", "settings-packet-x64.hex"]:
+    for name in ["layout-x64.json", "sentinel-packet-x64.hex", "settings-packet-x64.hex", "stock-layout-x64.json", "stock-settings-packet-x64.hex"]:
         actual = (output / name).read_text(encoding="utf-8")
         expected = fixtures / name
         if args.update:
@@ -61,7 +77,7 @@ def main():
     subprocess.run([
         "cargo", "test", "--lib", "--locked", "--offline", "--manifest-path", str(crate / "Cargo.toml"), "abi_tests",
     ], cwd=app, check=True)
-    print("Windows x64 C++ layouts, constants, curve fields and complete packet bytes match Rust.")
+    print("Windows x64 custom and pinned stock C++ layouts and complete packet bytes match Rust.")
 
 
 if __name__ == "__main__":

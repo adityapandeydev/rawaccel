@@ -1,10 +1,34 @@
-//! Offline, deterministic construction of the custom C++ driver's settings packet.
+//! Offline deterministic stock/custom packet encoding; only the selected contract reaches Apply.
 use crate::{config::AppConfig, models as ra, wire::Wire};
 use std::mem::size_of;
 
+#[cfg_attr(not(test), allow(dead_code))]
 pub(crate) fn encode(config: &AppConfig) -> Result<Vec<u8>, String> {
+    encode_layout(config, true)
+}
+
+pub(crate) fn encode_for_driver(config: &AppConfig) -> Result<Vec<u8>, String> {
+    crate::driver_contract::require_supported_modes(config)?;
+    encode_layout(config, crate::driver_contract::NATIVE_TIERED)
+}
+
+#[cfg(test)]
+pub(crate) fn encode_stock(config: &AppConfig) -> Result<Vec<u8>, String> {
+    encode_layout(config, false)
+}
+
+fn encode_layout(config: &AppConfig, native_tiered: bool) -> Result<Vec<u8>, String> {
     config.validate()?;
-    let (modifier_bytes, total) = packet_size(config.profiles.len(), config.devices.len())?;
+    if !native_tiered {
+        crate::driver_contract::require_stock_modes(config)?;
+    }
+    let stride = if native_tiered {
+        size_of::<ra::modifier_settings>()
+    } else {
+        size_of::<crate::stock_wire::StockModifier>()
+    };
+    let (modifier_bytes, total) =
+        packet_size_for(config.profiles.len(), config.devices.len(), stride)?;
     let mut bytes = Vec::new();
     bytes
         .try_reserve_exact(total)
@@ -24,8 +48,13 @@ pub(crate) fn encode(config: &AppConfig) -> Result<Vec<u8>, String> {
             ..Default::default()
         };
         crate::math::init_data(&mut settings);
-        let start = size_of::<ra::io_base>() + i * size_of::<ra::modifier_settings>();
-        settings.write(&mut bytes[start..start + size_of::<ra::modifier_settings>()]);
+        let start = size_of::<ra::io_base>() + i * stride;
+        if native_tiered {
+            settings.write(&mut bytes[start..start + stride]);
+        } else {
+            crate::stock_wire::StockModifier::try_from(&settings)?
+                .write(&mut bytes[start..start + stride]);
+        }
     }
     for (i, input) in config.devices.iter().enumerate() {
         let mut device = ra::device_settings::default();
@@ -67,13 +96,19 @@ pub(crate) fn encode(config: &AppConfig) -> Result<Vec<u8>, String> {
 }
 
 /// Check all arithmetic before allocating or narrowing counts for DeviceIoControl.
+#[cfg(test)]
 fn packet_size(profiles: usize, devices: usize) -> Result<(usize, usize), String> {
+    packet_size_for(profiles, devices, size_of::<ra::modifier_settings>())
+}
+fn packet_size_for(
+    profiles: usize,
+    devices: usize,
+    stride: usize,
+) -> Result<(usize, usize), String> {
     let error = || "Settings packet exceeds the driver's 32-bit size/count limit".to_string();
     u32::try_from(profiles).map_err(|_| error())?;
     u32::try_from(devices).map_err(|_| error())?;
-    let modifiers = size_of::<ra::modifier_settings>()
-        .checked_mul(profiles)
-        .ok_or_else(error)?;
+    let modifiers = stride.checked_mul(profiles).ok_or_else(error)?;
     let device_bytes = size_of::<ra::device_settings>()
         .checked_mul(devices)
         .ok_or_else(error)?;

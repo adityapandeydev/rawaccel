@@ -5,14 +5,6 @@ use crate::{
 };
 use serde::Serialize;
 
-// This is the source contract we validate offline, not the installed driver's version.
-pub const SOURCE_VERSION: version_t = version_t {
-    major: 1,
-    minor: 8,
-    patch: 0,
-};
-pub const CUSTOM_CONTRACT: &str = "rawaccel-tiered-v1";
-
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ConnectionState {
@@ -27,6 +19,7 @@ pub enum ConnectionState {
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Compatibility {
+    Supported,
     Unverified,
     Unsupported,
     Unknown,
@@ -35,8 +28,9 @@ pub enum Compatibility {
 pub struct DriverStatus {
     pub state: ConnectionState,
     pub version: Option<version_t>,
-    pub source_version: version_t,
-    pub custom_contract: &'static str,
+    pub supported_version: version_t,
+    pub driver_contract: &'static str,
+    pub tiered_apply_enabled: bool,
     pub compatibility: Compatibility,
     pub diagnostic: Option<DriverFailure>,
 }
@@ -51,17 +45,22 @@ pub(crate) fn status_with(
     let mut status = DriverStatus {
         state: ConnectionState::Connected,
         version: None,
-        source_version: SOURCE_VERSION,
-        custom_contract: CUSTOM_CONTRACT,
+        supported_version: crate::driver_contract::EXPECTED_VERSION,
+        driver_contract: crate::driver_contract::CONTRACT,
+        tiered_apply_enabled: crate::driver_contract::NATIVE_TIERED,
         compatibility: Compatibility::Unknown,
         diagnostic: None,
     };
     match probe() {
         Ok(version) => {
             status.version = Some(version);
-            // Equal versions cannot establish this custom layout: stock builds use the same version.
-            status.compatibility = if version == SOURCE_VERSION {
-                Compatibility::Unverified
+            // Version selects the tested packet protocol, not a cryptographic identity of the installed binary.
+            status.compatibility = if version == crate::driver_contract::EXPECTED_VERSION {
+                if crate::driver_contract::NATIVE_TIERED {
+                    Compatibility::Unverified
+                } else {
+                    Compatibility::Supported
+                }
             } else {
                 Compatibility::Unsupported
             };
@@ -105,7 +104,7 @@ mod tests {
                 .unwrap()
         };
         assert_eq!(
-            SOURCE_VERSION,
+            crate::driver_contract::CUSTOM_SOURCE_VERSION,
             version_t {
                 major: part("RA_VER_MAJOR"),
                 minor: part("RA_VER_MINOR"),
@@ -115,10 +114,20 @@ mod tests {
     }
     #[test]
     fn connection_and_custom_abi_compatibility_are_distinct() {
-        let status = status_with(|| Ok(SOURCE_VERSION));
+        let status = status_with(|| Ok(crate::driver_contract::EXPECTED_VERSION));
         assert_eq!(status.state, ConnectionState::Connected);
-        assert_eq!(status.version, Some(SOURCE_VERSION));
-        assert_eq!(status.compatibility, Compatibility::Unverified);
+        assert_eq!(
+            status.version,
+            Some(crate::driver_contract::EXPECTED_VERSION)
+        );
+        assert_eq!(
+            status.compatibility,
+            if crate::driver_contract::NATIVE_TIERED {
+                Compatibility::Unverified
+            } else {
+                Compatibility::Supported
+            }
+        );
         for major in [0, 2] {
             let actual = version_t {
                 major,

@@ -546,3 +546,94 @@ fn validated_tiered_and_device_settings_packet_matches_cpp_reference() {
         );
     }
 }
+
+#[test]
+fn stock_layout_matches_the_pinned_signed_release() {
+    use crate::stock_wire::*;
+    let expected: Value =
+        serde_json::from_str(include_str!("../tests/fixtures/abi/stock-layout-x64.json")).unwrap();
+    assert_eq!(
+        layout!(
+            StockAccelArgs,
+            mode,
+            gain,
+            input_offset,
+            output_offset,
+            acceleration,
+            decay_rate,
+            gamma,
+            motivity,
+            exponent_classic,
+            scale,
+            exponent_power,
+            limit,
+            sync_speed,
+            smooth,
+            cap,
+            cap_mode,
+            length,
+            data
+        ),
+        expected["StockAccelArgs"],
+        "StockAccelArgs"
+    );
+    assert_eq!(
+        layout!(
+            StockProfile,
+            name,
+            domain_weights,
+            range_weights,
+            accel_x,
+            accel_y,
+            speed_processor_args,
+            output_dpi,
+            yx_output_dpi_ratio,
+            lr_output_dpi_ratio,
+            ud_output_dpi_ratio,
+            degrees_rotation,
+            degrees_snap,
+            speed_min,
+            speed_max
+        ),
+        expected["StockProfile"],
+        "StockProfile"
+    );
+    assert_eq!(
+        layout!(StockModifier, prof, data),
+        expected["StockModifier"],
+        "StockModifier"
+    );
+    assert_eq!(expected["constants"]["noaccel"], 6);
+    assert_eq!(expected["constants"]["union_size"], ACCEL_UNION_SIZE);
+    let v = crate::driver_contract::STOCK_VERSION;
+    assert_eq!(
+        expected["constants"]["version"],
+        json!([v.major, v.minor, v.patch])
+    );
+}
+#[test]
+fn stock_settings_packet_matches_actual_upstream_cpp_bytes() {
+    let config = crate::config::parse_or_migrate_settings(include_str!(
+        "../tests/fixtures/abi/stock-settings.json"
+    ))
+    .unwrap();
+    let actual = crate::packet::encode_stock(&config).unwrap();
+    let hex: String = include_str!("../tests/fixtures/abi/stock-settings-packet-x64.hex")
+        .split_whitespace()
+        .collect();
+    let expected: Vec<u8> = hex
+        .as_bytes()
+        .chunks_exact(2)
+        .map(|p| u8::from_str_radix(std::str::from_utf8(p).unwrap(), 16).unwrap())
+        .collect();
+    assert_eq!(actual.len(), expected.len());
+    if let Some(i) = actual.iter().zip(&expected).position(|(a, b)| a != b) {
+        panic!(
+            "Stock packet differs at byte {i}: Rust {}, C++ {}",
+            actual[i], expected[i]
+        );
+    }
+    if !crate::driver_contract::NATIVE_TIERED {
+        assert_eq!(crate::packet::encode_for_driver(&config).unwrap(), actual);
+    }
+}

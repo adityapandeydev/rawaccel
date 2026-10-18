@@ -1,0 +1,57 @@
+{
+  "StockAccelArgs": {
+    "size": 2184,
+    "align": 8,
+    "mode": 0,
+    "gain": 4,
+    "input_offset": 8,
+    "output_offset": 16,
+    "acceleration": 24,
+    "decay_rate": 32,
+    "gamma": 40,
+    "motivity": 48,
+    "exponent_classic": 56,
+    "scale": 64,
+    "exponent_power": 72,
+    "limit": 80,
+    "sync_speed": 88,
+    "smooth": 96,
+    "cap": 104,
+    "cap_mode": 120,
+    "length": 124,
+    "data": 128
+  },
+  "StockProfile": {
+    "size": 5016,
+    "align": 8,
+    "name": 0,
+    "domain_weights": 512,
+    "range_weights": 528,
+    "accel_x": 544,
+    "accel_y": 2728,
+    "speed_processor_args": 4912,
+    "output_dpi": 4952,
+    "yx_output_dpi_ratio": 4960,
+    "lr_output_dpi_ratio": 4968,
+    "ud_output_dpi_ratio": 4976,
+    "degrees_rotation": 4984,
+    "degrees_snap": 4992,
+    "speed_min": 5000,
+    "speed_max": 5008
+  },
+  "StockModifier": {
+    "size": 5184,
+    "align": 8,
+    "prof": 0,
+    "data": 5016
+  },
+  "constants": {
+    "noaccel": 6,
+    "union_size": 72,
+    "version": [
+      1,
+      7,
+      0
+    ]
+  }
+}

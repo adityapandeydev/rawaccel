@@ -61,6 +61,19 @@ mod tests {
     }
 
     #[test]
+    fn preview_only_tiered_does_not_reach_driver_or_persistence() {
+        if crate::driver_contract::NATIVE_TIERED {
+            return;
+        }
+        let mut document: serde_json::Value = serde_json::from_str(&settings()).unwrap();
+        document["profiles"][0]["accel_x"]["mode"] = serde_json::json!("tiered");
+        let error = apply_with(&document.to_string(), crate::driver::apply_config, |_| {
+            panic!("Preview-only profiles must not be persisted by Apply")
+        })
+        .unwrap_err();
+        assert!(error.contains("preview only"));
+    }
+    #[test]
     fn unsupported_schema_never_reaches_driver_or_disk() {
         let raw = format!(
             "{{\"schema_version\":{},\"profiles\":[]}}",
