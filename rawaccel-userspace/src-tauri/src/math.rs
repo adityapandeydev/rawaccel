@@ -952,7 +952,7 @@ impl SynchronousGain {
         let range_stop = 9i32;
         let range_num = 8i32;
         let velocity = true;
-        let x_start = (1.0f64).powi(range_start) * 2.0f64.powi(range_start);
+        let x_start = 2.0f64.powi(range_start);
 
         let sig = SynchronousLegacy::new(args);
 
@@ -973,7 +973,7 @@ impl SynchronousGain {
                 a = x;
 
                 let mut y = sum;
-                if velocity {
+                if !velocity {
                     y /= x;
                 }
 
@@ -992,7 +992,7 @@ impl SynchronousGain {
             sum += sig.evaluate(a + p as f64 * interval) * interval;
         }
         let mut y = sum;
-        if velocity {
+        if !velocity {
             y /= x_final;
         }
         if idx < models::LUT_RAW_DATA_CAPACITY {
@@ -1006,6 +1006,22 @@ impl SynchronousGain {
             range_num,
             x_start,
         }
+    }
+
+    fn evaluate(&self, x: f64, args: &accel_args) -> f64 {
+        if x >= self.x_start {
+            let e = (x.log2().floor() as i32).min(self.range_stop - 1);
+            let idx_f = self.range_num as f64
+                * ((e - self.range_start) as f64 + x * 2.0f64.powi(-e) - 1.0);
+            let size = (self.range_stop - self.range_start) * self.range_num + 1;
+            let idx = (idx_f as usize).min((size - 2) as usize);
+            let a = args.data[idx] as f64;
+            let b = args.data[idx + 1] as f64;
+            let y = a + (idx_f - idx as f64) * (b - a);
+            return if self.velocity { y / x } else { y };
+        }
+        let y = args.data[0] as f64;
+        if self.velocity { y / self.x_start } else { y }
     }
 }
 
@@ -1194,7 +1210,13 @@ pub fn evaluate_curve(args: &accel_args, x: f64) -> f64 {
             }
         }
         accel_mode::synchronous => {
-            SynchronousLegacy::new(args).evaluate(x)
+            if args.gain {
+                let mut prepared = *args;
+                let curve = SynchronousGain::new(&mut prepared);
+                curve.evaluate(x, &prepared)
+            } else {
+                SynchronousLegacy::new(args).evaluate(x)
+            }
         }
         accel_mode::lookup => {
             Lookup::new(args).evaluate(x, args)
@@ -1210,6 +1232,25 @@ mod tests {
     use super::*;
     use crate::models::{accel_args, accel_mode, cap_mode, tiered_type, ACCEL_UNION_SIZE};
     use std::mem::size_of;
+
+    #[test]
+    fn synchronous_gain_uses_velocity_table_and_evaluates_its_integral() {
+        let mut args = accel_args::default();
+        args.mode = accel_mode::synchronous;
+        args.gain = true;
+        args.motivity = 2.0;
+        args.gamma = 1.0;
+        args.sync_speed = 10.0;
+        args.smooth = 0.0;
+        init_accel_union(&mut accel_union::default(), &mut args);
+        // C++ integrates the constant minimum gain (0.5) from 0 to 0.125.
+        assert_eq!(args.data[0], 0.0625);
+        assert_eq!(evaluate_curve(&args, 0.0), 0.5);
+        assert_eq!(evaluate_curve(&args, 0.125), 0.5);
+        // Gain integrates the curve; Legacy is exactly 1 at sync_speed.
+        assert!(evaluate_curve(&args, 10.0) < 0.9);
+        assert!(evaluate_curve(&args, 1024.0).is_finite());
+    }
 
     // ── 1. Binary Memory Layout & ABI Size Tests ─────────────────────────
 
@@ -1467,6 +1508,7 @@ mod tests {
     fn test_synchronous_legacy_symmetry() {
         let args = accel_args {
             mode: accel_mode::synchronous,
+            gain: false,
             motivity: 2.0,
             sync_speed: 10.0,
             gamma: 1.0,
