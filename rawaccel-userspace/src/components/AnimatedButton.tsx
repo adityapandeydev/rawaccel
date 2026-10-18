@@ -5,13 +5,15 @@ interface AnimatedButtonProps {
   defaultText: React.ReactNode;
   successText: React.ReactNode;
   className?: string;
+  disabled?: boolean;
+  title?: string;
 }
 
-export function AnimatedButton({ onClick, defaultText, successText, className = "btn btn-primary" }: AnimatedButtonProps) {
+export function AnimatedButton({ onClick, defaultText, successText, className = "btn btn-primary", disabled = false, title }: AnimatedButtonProps) {
   const [isSuccess, setIsSuccess] = useState(false);
 
   const handleClick = async () => {
-    if (isSuccess) return;
+    if (isSuccess || disabled) return;
     try {
       const succeeded = await onClick();
       // A completed operation may have a partial outcome already shown by its
@@ -28,7 +30,8 @@ export function AnimatedButton({ onClick, defaultText, successText, className = 
     <button
       className={`${className} ${isSuccess ? "btn-success-animated" : ""}`}
       onClick={handleClick}
-      disabled={isSuccess}
+      disabled={isSuccess || disabled}
+      title={title}
     >
       {isSuccess ? successText : defaultText}
     </button>

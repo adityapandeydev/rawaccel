@@ -91,6 +91,20 @@ fn classify(error: &DriverFailure) -> ConnectionState {
 mod tests {
     use super::*;
     #[test]
+    fn stock_status_payload_matches_the_frontend_fixture() {
+        if crate::driver_contract::NATIVE_TIERED {
+            return;
+        }
+        let expected: serde_json::Value = serde_json::from_str(include_str!(
+            "../tests/fixtures/driver-status/stock-connected.json"
+        ))
+        .unwrap();
+        let actual =
+            serde_json::to_value(status_with(|| Ok(crate::driver_contract::STOCK_VERSION)))
+                .unwrap();
+        assert_eq!(actual, expected);
+    }
+    #[test]
     fn source_contract_matches_the_actual_custom_cpp_header() {
         let header = include_str!("../../../common/rawaccel-version.h");
         let part = |name: &str| {

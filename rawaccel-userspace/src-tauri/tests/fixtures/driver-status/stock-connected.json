@@ -1,0 +1,17 @@
+{
+  "state": "connected",
+  "version": {
+    "major": 1,
+    "minor": 7,
+    "patch": 0
+  },
+  "supported_version": {
+    "major": 1,
+    "minor": 7,
+    "patch": 0
+  },
+  "driver_contract": "rawaccel-stock-1.7",
+  "tiered_apply_enabled": false,
+  "compatibility": "supported",
+  "diagnostic": null
+}

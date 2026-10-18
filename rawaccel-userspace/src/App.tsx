@@ -1,3 +1,6 @@
+import { useDriverStatus } from "./hooks/useDriverStatus";
+import { applyBlockReason } from "./driverStatus";
+import { DriverStatusIndicator } from "./components/DriverStatus";
 import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { Moon, Sun, Monitor, Layers, Activity, Plus, Save, Download, Upload, Mouse, Menu, X, Settings, Maximize, Minimize, Check } from "lucide-react";
@@ -27,6 +30,7 @@ const copyLookupTable = (table: { x: number; y: number }[]) =>
   table.map((point) => ({ ...point }));
 
 function App() {
+  const driverStatus = useDriverStatus();
   const [profiles, setProfiles] = useState<Profile[]>([defaultProfile()]);
   const [activeProfileIndex, setActiveProfileIndex] = useState(0);
   const activeProfile = profiles[activeProfileIndex] || profiles[0];
@@ -48,6 +52,9 @@ function App() {
   const [isProfilesExpanded, setIsProfilesExpanded] = useState(false);
   const [modalState, setModalState] = useState({ isOpen: false, title: "", message: "" });
   
+  const applyDisabledReason = applyBlockReason(driverStatus, profiles);
+  const tieredPreview = !driverStatus.report?.tiered_apply_enabled && (activeProfile.accel_x.mode === "tiered" || activeProfile.accel_y.mode === "tiered");
+
   const mappedDevicesCount = deviceConfig.filter(d => !d.disable && d.profile_id).length;
 
   const toggleGraph = (graph: string) => {
@@ -69,42 +76,52 @@ function App() {
   }, [theme]);
 
   async function applySettings(overrideConfig?: DeviceConfig[]): Promise<boolean> {
-    const configToUse = overrideConfig || deviceConfig;
-    const validationError = validateSettings(profiles, configToUse, settingsMetadata.default_device_config);
-    if (validationError) {
-      setModalState({ isOpen: true, title: "Invalid Input", message: validationError });
-      throw new Error(validationError);
-    }
-
     try {
-      console.log("Applying Settings...", profiles);
-      const profileJson = JSON.stringify({ 
-        ...settingsMetadata,
-        profiles: profiles,
-        devices: configToUse
-      });
-      const result = await invoke<SettingsApplyReport>('apply_settings', { settingsJson: profileJson });
-      if (!result.saved) {
-        setModalState({
-          isOpen: true,
-          title: "Applied, But Not Saved",
-          message: `Your settings are active in the driver, but could not be saved. They may be lost after restarting.\n${result.save_error ?? "No settings location could be updated."}`,
-        });
-        return false;
+      const block = applyBlockReason(driverStatus, profiles);
+      if (block) {
+        setModalState({ isOpen: true, title: "Settings Were Not Applied", message: block });
+        throw new Error(block);
       }
-      if (result.warnings.length > 0) {
-        setModalState({
-          isOpen: true,
-          title: "Applied and Saved With Warnings",
-          message: `Your settings are active and were saved to:\n${result.saved_paths.join("\n")}\nSome locations could not be updated:\n${result.warnings.join("\n")}`,
-        });
+      const configToUse = overrideConfig || deviceConfig;
+      const validationError = validateSettings(profiles, configToUse, settingsMetadata.default_device_config);
+      if (validationError) {
+        setModalState({ isOpen: true, title: "Invalid Input", message: validationError });
+        throw new Error(validationError);
       }
-      console.log("Settings applied and saved successfully.");
-      return true;
-    } catch (error) {
-      console.error("Failed to apply settings:", error);
-      setModalState({ isOpen: true, title: "Settings Were Not Applied", message: String(error) });
-      throw error;
+
+      try {
+        console.log("Applying Settings...", profiles);
+        const profileJson = JSON.stringify({
+          ...settingsMetadata,
+          profiles: profiles,
+          devices: configToUse
+        });
+        const result = await invoke<SettingsApplyReport>('apply_settings', { settingsJson: profileJson });
+        if (!result.saved) {
+          setModalState({
+            isOpen: true,
+            title: "Applied, But Not Saved",
+            message: `Your settings are active in the driver, but could not be saved. They may be lost after restarting.\n${result.save_error ?? "No settings location could be updated."}`,
+          });
+          return false;
+        }
+        if (result.warnings.length > 0) {
+          setModalState({
+            isOpen: true,
+            title: "Applied and Saved With Warnings",
+            message: `Your settings are active and were saved to:\n${result.saved_paths.join("\n")}\nSome locations could not be updated:\n${result.warnings.join("\n")}`,
+          });
+        }
+        console.log("Settings applied and saved successfully.");
+        return true;
+      } catch (error) {
+        console.error("Failed to apply settings:", error);
+        setModalState({ isOpen: true, title: "Settings Were Not Applied", message: String(error) });
+        throw error;
+      }
+    } finally {
+      // Status failures never turn a successful Apply/Save into a failed operation.
+      void driverStatus.afterApply();
     }
   }
 
@@ -277,7 +294,7 @@ function App() {
               {theme === "dark" ? <Sun size={14} /> : <Moon size={14} />}
             </button>
           </div>
-          <button className="btn" style={{ padding: "0.25rem", background: "transparent", border: "none", color: "var(--text-muted)" }} onClick={() => setIsSidebarOpen(false)}>
+          <button className="btn" style={{ padding: "0.25rem", background: "transparent", border: "none", color: "var(--text-muted)" }} aria-label="Close navigation" onClick={() => setIsSidebarOpen(false)}>
             <X size={20} />
           </button>
         </div>
@@ -466,10 +483,10 @@ function App() {
       <main className="main-content" style={{ display: "flex", flexDirection: "column", width: "100%" }}>
         
         {/* Global Header */}
-        <header style={{ padding: "1rem 1.5rem", borderBottom: "1px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "center", backgroundColor: "var(--bg-app)", zIndex: 5 }}>
+        <header className="app-header" style={{ padding: "1rem 1.5rem", borderBottom: "1px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "center", backgroundColor: "var(--bg-app)", zIndex: 5 }}>
           
           <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
-            <button className="btn" style={{ padding: "0.5rem", background: "transparent", border: "none", color: "var(--text-main)", cursor: "pointer", display: "flex", alignItems: "center" }} onClick={() => setIsSidebarOpen(true)}>
+            <button className="btn" style={{ padding: "0.5rem", background: "transparent", border: "none", color: "var(--text-main)", cursor: "pointer", display: "flex", alignItems: "center" }} aria-label="Open navigation" onClick={() => setIsSidebarOpen(true)}>
               <Menu size={22} />
             </button>
             
@@ -508,7 +525,8 @@ function App() {
             )}
           </div>
 
-          <div style={{ display: "flex", alignItems: "center", gap: "1.5rem" }}>
+          <div className="app-header-actions" style={{ display: "flex", alignItems: "center", gap: "1.5rem" }}>
+            <DriverStatusIndicator snapshot={driverStatus} onRefresh={driverStatus.refresh} />
             {activeTab === "profiles" && (
               <>
                 <div style={{ display: "flex", gap: "0.25rem", background: "var(--bg-input)", padding: "0.25rem", borderRadius: "var(--radius-sm)", border: "1px solid var(--border)" }}>
@@ -536,6 +554,8 @@ function App() {
 
             {activeTab === "profiles" ? (
               <AnimatedButton
+                disabled={applyDisabledReason !== null}
+                title={applyDisabledReason ?? "Apply settings to the driver"}
                 onClick={async () => {
                   if (profiles.length === 1 && mappedDevicesCount <= 1 && deviceConfig.length > 0) {
                     const targetDeviceIndex = deviceConfig.findIndex(d => !d.disable && d.profile_id);
@@ -553,6 +573,8 @@ function App() {
               />
             ) : (
               activeTab !== "settings" && <AnimatedButton 
+                disabled={applyDisabledReason !== null}
+                title={applyDisabledReason ?? "Apply settings to the driver"}
                 onClick={async () => await applySettings()} 
                 defaultText={<><Save size={16} /> Apply Settings</>} 
                 successText={<><Check size={16} /> Applied!</>} 
@@ -563,6 +585,8 @@ function App() {
 
         {activeTab === "settings" && (
           <SettingsView 
+            driverStatus={driverStatus}
+            onRefreshDriver={driverStatus.refresh}
             theme={theme}
             setTheme={setTheme}
             language={language}
@@ -575,11 +599,16 @@ function App() {
         )}
 
         {activeTab === "profiles" && (
-          <div style={{ display: "grid", gridTemplateColumns: "340px 1fr", padding: "0 1.5rem 1.5rem 1.5rem", gap: "1.5rem", height: "calc(100vh - 65px)", overflow: "hidden" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "340px 1fr", padding: "0 1.5rem 1.5rem 1.5rem", gap: "1.5rem", flex: 1, minHeight: 0, overflow: "hidden" }}>
             
             {/* Left Column: Mode Selection, Fields & Advanced Config */}
             <div className="custom-scrollbar" style={{ display: "flex", flexDirection: "column", gap: "1.5rem", height: "100%", overflowY: "auto", paddingRight: "0.5rem", paddingTop: "1.5rem" }}>
               
+              {tieredPreview && <div className="tiered-preview-notice" role="note">
+                <strong>Tiered · Preview only</strong>
+                <p>Edit either submode and explore all graph views. Switch to a supported mode before applying to the stock driver.</p>
+              </div>}
+
               {/* Mode Settings Pane */}
               <div className="panel" style={{ padding: "1.5rem" }}>
                 <div className="panel-header" style={{ marginBottom: "1.5rem", display: "flex", alignItems: "center", gap: "1rem" }}>
@@ -609,7 +638,7 @@ function App() {
                         { value: "natural", label: "Natural" },
                         { value: "power", label: "Power" },
                         { value: "synchronous", label: "Synchronous" },
-                        { value: "tiered", label: "Tiered" },
+                        { value: "tiered", label: driverStatus.report?.tiered_apply_enabled ? "Tiered" : "Tiered (Preview)" },
                         { value: "lookup", label: "Lookup Table" },
                         { value: "noaccel", label: "Off" },
                       ]}

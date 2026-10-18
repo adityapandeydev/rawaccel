@@ -1,9 +1,13 @@
+import { DriverStatusCard } from "./DriverStatus";
+import type { DriverStatusSnapshot } from "../driverStatus";
 import React from "react";
 import { Globe, Bell, Info } from "lucide-react";
 import { CustomSelect } from "./CustomSelect";
 import { enable, disable, isEnabled } from '@tauri-apps/plugin-autostart';
 
 interface SettingsViewProps {
+  driverStatus: DriverStatusSnapshot;
+  onRefreshDriver: () => Promise<void>;
   theme: "dark" | "light" | "system";
   setTheme: (theme: "dark" | "light" | "system") => void;
   language: string;
@@ -15,6 +19,8 @@ interface SettingsViewProps {
 }
 
 export const SettingsView: React.FC<SettingsViewProps> = ({
+  driverStatus,
+  onRefreshDriver,
   theme,
   setTheme,
   language,
@@ -43,7 +49,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     }
   };
   return (
-    <div style={{ height: "100%", display: "flex", flexDirection: "column", padding: "1.5rem" }}>
+    <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column", padding: "1.5rem" }}>
       
 
       <div style={{ flex: 1, overflowY: "auto", padding: "1.5rem", display: "flex", flexDirection: "column", gap: "2rem" }}>
@@ -144,6 +150,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             <h3 style={{ margin: 0, fontSize: "1.1rem", fontWeight: 600 }}>Support & About</h3>
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem", paddingLeft: "1.5rem" }}>
+            <DriverStatusCard snapshot={driverStatus} onRefresh={onRefreshDriver} />
             <a href="https://github.com/a1xd/rawaccel" target="_blank" rel="noreferrer" style={{ color: "var(--color-primary)", textDecoration: "none", fontSize: "0.95rem" }}>
               GitHub Repository
             </a>
