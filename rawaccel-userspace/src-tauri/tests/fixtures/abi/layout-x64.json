@@ -1,0 +1,327 @@
+{
+  "vec2d": {
+    "size": 16,
+    "align": 8,
+    "x": 0,
+    "y": 8
+  },
+  "accel_args": {
+    "size": 2264,
+    "align": 8,
+    "mode": 0,
+    "gain": 4,
+    "input_offset": 8,
+    "output_offset": 16,
+    "acceleration": 24,
+    "decay_rate": 32,
+    "gamma": 40,
+    "motivity": 48,
+    "exponent_classic": 56,
+    "scale": 64,
+    "exponent_power": 72,
+    "limit": 80,
+    "sync_speed": 88,
+    "smooth": 96,
+    "t_type": 104,
+    "tiered_multiplier1": 112,
+    "tiered_input_offset1": 120,
+    "tiered_multiplier2": 128,
+    "tiered_transition1": 136,
+    "tiered_input_offset2": 144,
+    "tiered_multiplier3": 152,
+    "tiered_transition2": 160,
+    "tiered_decay_rate1": 168,
+    "tiered_decay_rate2": 176,
+    "cap": 184,
+    "cap_mode": 200,
+    "length": 204,
+    "data": 208
+  },
+  "speed_args": {
+    "size": 40,
+    "align": 8,
+    "whole": 0,
+    "lp_norm": 8,
+    "input_speed_smooth_halflife": 16,
+    "scale_smooth_halflife": 24,
+    "output_speed_smooth_halflife": 32
+  },
+  "profile": {
+    "size": 5176,
+    "align": 8,
+    "name": 0,
+    "domain_weights": 512,
+    "range_weights": 528,
+    "accel_x": 544,
+    "accel_y": 2808,
+    "speed_processor_args": 5072,
+    "output_dpi": 5112,
+    "yx_output_dpi_ratio": 5120,
+    "lr_output_dpi_ratio": 5128,
+    "ud_output_dpi_ratio": 5136,
+    "degrees_rotation": 5144,
+    "degrees_snap": 5152,
+    "speed_min": 5160,
+    "speed_max": 5168
+  },
+  "modifier_flags": {
+    "size": 7,
+    "align": 1,
+    "apply_rotate": 0,
+    "compute_ref_angle": 1,
+    "apply_snap": 2,
+    "clamp_speed": 3,
+    "apply_directional_weight": 4,
+    "apply_dir_mul_x": 5,
+    "apply_dir_mul_y": 6
+  },
+  "accel_union": {
+    "size": 72,
+    "align": 8,
+    "memory": 0
+  },
+  "modifier_settings_data": {
+    "size": 168,
+    "align": 8,
+    "flags": 0,
+    "rot_direction": 8,
+    "accel_x": 24,
+    "accel_y": 96
+  },
+  "modifier_settings": {
+    "size": 5344,
+    "align": 8,
+    "prof": 0,
+    "data": 5176
+  },
+  "time_clamp": {
+    "size": 16,
+    "align": 8,
+    "min": 0,
+    "max": 8
+  },
+  "device_config": {
+    "size": 32,
+    "align": 8,
+    "disable": 0,
+    "set_extra_info": 1,
+    "poll_time_lock": 2,
+    "dpi": 4,
+    "polling_rate": 8,
+    "clamp": 16
+  },
+  "device_settings": {
+    "size": 1456,
+    "align": 8,
+    "name": 0,
+    "profile": 512,
+    "id": 1024,
+    "config": 1424
+  },
+  "io_base": {
+    "size": 40,
+    "align": 8,
+    "default_dev_cfg": 0,
+    "modifier_data_size": 32,
+    "device_data_size": 36
+  },
+  "version_t": {
+    "size": 12,
+    "align": 4,
+    "major": 0,
+    "minor": 4,
+    "patch": 8
+  },
+  "ClassicLegacy": {
+    "size": 24,
+    "align": 8,
+    "accel_raised": 0,
+    "cap": 8,
+    "sign": 16
+  },
+  "ClassicGain": {
+    "size": 40,
+    "align": 8,
+    "accel_raised": 0,
+    "cap": 8,
+    "constant": 24,
+    "sign": 32
+  },
+  "JumpLegacy": {
+    "size": 24,
+    "align": 8,
+    "step": 0,
+    "smooth_rate": 16
+  },
+  "JumpGain": {
+    "size": 32,
+    "align": 8,
+    "step": 0,
+    "smooth_rate": 16,
+    "c": 24
+  },
+  "NaturalLegacy": {
+    "size": 24,
+    "align": 8,
+    "offset": 0,
+    "accel": 8,
+    "limit": 16
+  },
+  "NaturalGain": {
+    "size": 32,
+    "align": 8,
+    "offset": 0,
+    "accel": 8,
+    "limit": 16,
+    "constant": 24
+  },
+  "PowerLegacy": {
+    "size": 40,
+    "align": 8,
+    "offset": 0,
+    "scale": 16,
+    "constant": 24,
+    "cap": 32
+  },
+  "PowerGain": {
+    "size": 56,
+    "align": 8,
+    "offset": 0,
+    "scale": 16,
+    "constant": 24,
+    "cap": 32,
+    "constant_b": 48
+  },
+  "TieredLinearLegacy": {
+    "size": 72,
+    "align": 8,
+    "m1": 0,
+    "x1": 8,
+    "m2": 16,
+    "x1_end": 24,
+    "inv_trans1": 32,
+    "m3": 40,
+    "x2": 48,
+    "x2_end": 56,
+    "inv_trans2": 64
+  },
+  "TieredNaturalLegacy": {
+    "size": 72,
+    "align": 8,
+    "m1": 0,
+    "x1": 8,
+    "l1": 16,
+    "a1": 24,
+    "x2": 32,
+    "v2": 40,
+    "m2_prime": 48,
+    "l2": 56,
+    "a2": 64
+  },
+  "TieredNaturalGain": {
+    "size": 72,
+    "align": 8,
+    "m1": 0,
+    "x1": 8,
+    "l1": 16,
+    "a1": 24,
+    "x2": 32,
+    "v2": 40,
+    "m2_prime": 48,
+    "l2": 56,
+    "a2": 64
+  },
+  "Lookup": {
+    "size": 0,
+    "align": 4,
+    "velocity": 4
+  },
+  "SynchronousLegacy": {
+    "size": 72,
+    "align": 8,
+    "log_motivity": 0,
+    "gamma_const": 8,
+    "log_syncspeed": 16,
+    "syncspeed": 24,
+    "sharpness": 32,
+    "sharpness_recip": 40,
+    "use_linear_clamp": 48,
+    "minimum_sens": 56,
+    "maximum_sens": 64
+  },
+  "SynchronousGain": {
+    "size": 24,
+    "align": 8,
+    "velocity": 0,
+    "range_start": 4,
+    "range_stop": 8,
+    "range_num": 12,
+    "x_start": 16
+  },
+  "accel_mode": {
+    "size": 4,
+    "align": 4
+  },
+  "cap_mode": {
+    "size": 4,
+    "align": 4
+  },
+  "tiered_type": {
+    "size": 4,
+    "align": 4
+  },
+  "cpp_bool": {
+    "size": 1,
+    "align": 1
+  },
+  "RAWINPUTHEADER": {
+    "size": 24,
+    "align": 8,
+    "dwType": 0,
+    "dwSize": 4,
+    "hDevice": 8,
+    "wParam": 16
+  },
+  "RAWMOUSE": {
+    "size": 24,
+    "align": 4,
+    "usFlags": 0,
+    "ulRawButtons": 8,
+    "lLastX": 12,
+    "lLastY": 16,
+    "ulExtraInformation": 20
+  },
+  "RAWINPUT": {
+    "size": 48,
+    "align": 8,
+    "header": 0,
+    "data": 24
+  },
+  "RAWINPUTDEVICELIST": {
+    "size": 16,
+    "align": 8,
+    "hDevice": 0,
+    "dwType": 8
+  },
+  "constants": {
+    "MAX_NAME_LEN": 256,
+    "MAX_DEV_ID_LEN": 200,
+    "LUT_RAW_DATA_CAPACITY": 514,
+    "READ": 2290623008,
+    "WRITE": 2290623012,
+    "GET_VERSION": 2290623016,
+    "accel_mode.classic": 0,
+    "accel_mode.jump": 1,
+    "accel_mode.natural": 2,
+    "accel_mode.synchronous": 3,
+    "accel_mode.power": 4,
+    "accel_mode.lookup": 5,
+    "accel_mode.tiered": 6,
+    "accel_mode.noaccel": 7,
+    "cap_mode.io": 0,
+    "cap_mode.in": 1,
+    "cap_mode.out": 2,
+    "tiered_type.linear": 0,
+    "tiered_type.natural": 1
+  }
+}

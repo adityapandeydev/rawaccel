@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
+    "test:abi": "python scripts/check_driver_abi.py",
     "test:validation": "node --test scripts/validation.test.mjs",
     "test:settings-defaults": "node --test scripts/settings-defaults.test.mjs",
     "preview": "vite preview",

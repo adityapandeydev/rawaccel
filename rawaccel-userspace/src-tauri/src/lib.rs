@@ -1,3 +1,5 @@
+#[cfg(test)]
+mod abi_tests;
 mod input_buffers;
 mod wire;
 mod packet;

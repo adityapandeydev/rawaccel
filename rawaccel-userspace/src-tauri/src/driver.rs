@@ -10,9 +10,10 @@ use windows::Win32::System::IO::DeviceIoControl;
 const DEVICE_NAME: &str = r"\\.\rawaccel";
 
 // IOCTLs defined in rawaccel-io-def.h
-const _IOCTL_READ: u32 = 0x88882220;
-const IOCTL_WRITE: u32 = 0x88882224;
-const IOCTL_GET_VERSION: u32 = 0x88882228;
+#[allow(dead_code)] // Mirrored/read-tested for ABI verification; no read command yet.
+pub(crate) const IOCTL_READ: u32 = 0x88882220;
+pub(crate) const IOCTL_WRITE: u32 = 0x88882224;
+pub(crate) const IOCTL_GET_VERSION: u32 = 0x88882228;
 
 pub fn open_driver() -> Result<OwnedHandle, String> {
     let mut wide_name: Vec<u16> = DEVICE_NAME.encode_utf16().collect();

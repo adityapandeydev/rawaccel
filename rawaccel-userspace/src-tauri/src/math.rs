@@ -1024,12 +1024,52 @@ crate::wire::wire_struct!(NaturalLegacy, offset, accel, limit);
 crate::wire::wire_struct!(NaturalGain, offset, accel, limit, constant);
 crate::wire::wire_struct!(PowerLegacy, offset, scale, constant, cap);
 crate::wire::wire_struct!(PowerGain, offset, scale, constant, cap, constant_b);
-crate::wire::wire_struct!(TieredLinearLegacy, m1, x1, m2, x1_end, inv_trans1, m3, x2, x2_end, inv_trans2);
-crate::wire::wire_struct!(TieredNaturalLegacy, m1, x1, l1, a1, x2, v2, m2_prime, l2, a2);
+crate::wire::wire_struct!(
+    TieredLinearLegacy,
+    m1,
+    x1,
+    m2,
+    x1_end,
+    inv_trans1,
+    m3,
+    x2,
+    x2_end,
+    inv_trans2
+);
+crate::wire::wire_struct!(
+    TieredNaturalLegacy,
+    m1,
+    x1,
+    l1,
+    a1,
+    x2,
+    v2,
+    m2_prime,
+    l2,
+    a2
+);
 crate::wire::wire_struct!(TieredNaturalGain, m1, x1, l1, a1, x2, v2, m2_prime, l2, a2);
 crate::wire::wire_struct!(Lookup, size, velocity);
-crate::wire::wire_struct!(SynchronousLegacy, log_motivity, gamma_const, log_syncspeed, syncspeed, sharpness, sharpness_recip, use_linear_clamp, minimum_sens, maximum_sens);
-crate::wire::wire_struct!(SynchronousGain, velocity, range_start, range_stop, range_num, x_start);
+crate::wire::wire_struct!(
+    SynchronousLegacy,
+    log_motivity,
+    gamma_const,
+    log_syncspeed,
+    syncspeed,
+    sharpness,
+    sharpness_recip,
+    use_linear_clamp,
+    minimum_sens,
+    maximum_sens
+);
+crate::wire::wire_struct!(
+    SynchronousGain,
+    velocity,
+    range_start,
+    range_stop,
+    range_num,
+    x_start
+);
 
 // ── Union Initialization ─────────────────────────────────────────────────
 
@@ -1626,3 +1666,24 @@ mod tests {
     }
 }
 
+
+#[cfg(test)]
+pub(crate) fn curve_layouts() -> serde_json::Map<String, serde_json::Value> {
+    use std::mem::{align_of, offset_of, size_of};
+    let mut layouts = serde_json::Map::new();
+    layouts.insert("ClassicLegacy".into(), serde_json::json!({ "size": size_of::<ClassicLegacy>(), "align": align_of::<ClassicLegacy>(), "accel_raised": offset_of!(ClassicLegacy, accel_raised), "cap": offset_of!(ClassicLegacy, cap), "sign": offset_of!(ClassicLegacy, sign) }));
+    layouts.insert("ClassicGain".into(), serde_json::json!({ "size": size_of::<ClassicGain>(), "align": align_of::<ClassicGain>(), "accel_raised": offset_of!(ClassicGain, accel_raised), "cap": offset_of!(ClassicGain, cap), "constant": offset_of!(ClassicGain, constant), "sign": offset_of!(ClassicGain, sign) }));
+    layouts.insert("JumpLegacy".into(), serde_json::json!({ "size": size_of::<JumpLegacy>(), "align": align_of::<JumpLegacy>(), "step": offset_of!(JumpLegacy, step), "smooth_rate": offset_of!(JumpLegacy, smooth_rate) }));
+    layouts.insert("JumpGain".into(), serde_json::json!({ "size": size_of::<JumpGain>(), "align": align_of::<JumpGain>(), "step": offset_of!(JumpGain, step), "smooth_rate": offset_of!(JumpGain, smooth_rate), "c": offset_of!(JumpGain, c) }));
+    layouts.insert("NaturalLegacy".into(), serde_json::json!({ "size": size_of::<NaturalLegacy>(), "align": align_of::<NaturalLegacy>(), "offset": offset_of!(NaturalLegacy, offset), "accel": offset_of!(NaturalLegacy, accel), "limit": offset_of!(NaturalLegacy, limit) }));
+    layouts.insert("NaturalGain".into(), serde_json::json!({ "size": size_of::<NaturalGain>(), "align": align_of::<NaturalGain>(), "offset": offset_of!(NaturalGain, offset), "accel": offset_of!(NaturalGain, accel), "limit": offset_of!(NaturalGain, limit), "constant": offset_of!(NaturalGain, constant) }));
+    layouts.insert("PowerLegacy".into(), serde_json::json!({ "size": size_of::<PowerLegacy>(), "align": align_of::<PowerLegacy>(), "offset": offset_of!(PowerLegacy, offset), "scale": offset_of!(PowerLegacy, scale), "constant": offset_of!(PowerLegacy, constant), "cap": offset_of!(PowerLegacy, cap) }));
+    layouts.insert("PowerGain".into(), serde_json::json!({ "size": size_of::<PowerGain>(), "align": align_of::<PowerGain>(), "offset": offset_of!(PowerGain, offset), "scale": offset_of!(PowerGain, scale), "constant": offset_of!(PowerGain, constant), "cap": offset_of!(PowerGain, cap), "constant_b": offset_of!(PowerGain, constant_b) }));
+    layouts.insert("TieredLinearLegacy".into(), serde_json::json!({ "size": size_of::<TieredLinearLegacy>(), "align": align_of::<TieredLinearLegacy>(), "m1": offset_of!(TieredLinearLegacy, m1), "x1": offset_of!(TieredLinearLegacy, x1), "m2": offset_of!(TieredLinearLegacy, m2), "x1_end": offset_of!(TieredLinearLegacy, x1_end), "inv_trans1": offset_of!(TieredLinearLegacy, inv_trans1), "m3": offset_of!(TieredLinearLegacy, m3), "x2": offset_of!(TieredLinearLegacy, x2), "x2_end": offset_of!(TieredLinearLegacy, x2_end), "inv_trans2": offset_of!(TieredLinearLegacy, inv_trans2) }));
+    layouts.insert("TieredNaturalLegacy".into(), serde_json::json!({ "size": size_of::<TieredNaturalLegacy>(), "align": align_of::<TieredNaturalLegacy>(), "m1": offset_of!(TieredNaturalLegacy, m1), "x1": offset_of!(TieredNaturalLegacy, x1), "l1": offset_of!(TieredNaturalLegacy, l1), "a1": offset_of!(TieredNaturalLegacy, a1), "x2": offset_of!(TieredNaturalLegacy, x2), "v2": offset_of!(TieredNaturalLegacy, v2), "m2_prime": offset_of!(TieredNaturalLegacy, m2_prime), "l2": offset_of!(TieredNaturalLegacy, l2), "a2": offset_of!(TieredNaturalLegacy, a2) }));
+    layouts.insert("TieredNaturalGain".into(), serde_json::json!({ "size": size_of::<TieredNaturalGain>(), "align": align_of::<TieredNaturalGain>(), "m1": offset_of!(TieredNaturalGain, m1), "x1": offset_of!(TieredNaturalGain, x1), "l1": offset_of!(TieredNaturalGain, l1), "a1": offset_of!(TieredNaturalGain, a1), "x2": offset_of!(TieredNaturalGain, x2), "v2": offset_of!(TieredNaturalGain, v2), "m2_prime": offset_of!(TieredNaturalGain, m2_prime), "l2": offset_of!(TieredNaturalGain, l2), "a2": offset_of!(TieredNaturalGain, a2) }));
+    layouts.insert("Lookup".into(), serde_json::json!({ "size": size_of::<Lookup>(), "align": align_of::<Lookup>(), "size": offset_of!(Lookup, size), "velocity": offset_of!(Lookup, velocity) }));
+    layouts.insert("SynchronousLegacy".into(), serde_json::json!({ "size": size_of::<SynchronousLegacy>(), "align": align_of::<SynchronousLegacy>(), "log_motivity": offset_of!(SynchronousLegacy, log_motivity), "gamma_const": offset_of!(SynchronousLegacy, gamma_const), "log_syncspeed": offset_of!(SynchronousLegacy, log_syncspeed), "syncspeed": offset_of!(SynchronousLegacy, syncspeed), "sharpness": offset_of!(SynchronousLegacy, sharpness), "sharpness_recip": offset_of!(SynchronousLegacy, sharpness_recip), "use_linear_clamp": offset_of!(SynchronousLegacy, use_linear_clamp), "minimum_sens": offset_of!(SynchronousLegacy, minimum_sens), "maximum_sens": offset_of!(SynchronousLegacy, maximum_sens) }));
+    layouts.insert("SynchronousGain".into(), serde_json::json!({ "size": size_of::<SynchronousGain>(), "align": align_of::<SynchronousGain>(), "velocity": offset_of!(SynchronousGain, velocity), "range_start": offset_of!(SynchronousGain, range_start), "range_stop": offset_of!(SynchronousGain, range_stop), "range_num": offset_of!(SynchronousGain, range_num), "x_start": offset_of!(SynchronousGain, x_start) }));
+    layouts
+}

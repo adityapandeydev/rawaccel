@@ -1,0 +1,57 @@
+{
+  "profiles": [
+    {
+      "name": "Default Profile",
+      "accel_x": {
+        "mode": "noaccel"
+      },
+      "degrees_snap": 2,
+      "range_weights": {
+        "x": 1,
+        "y": 2
+      },
+      "speed_min": 1,
+      "speed_max": 40,
+      "lr_output_dpi_ratio": 1.25,
+      "ud_output_dpi_ratio": 0.75
+    },
+    {
+      "name": "Tiered",
+      "accel_x": {
+        "mode": "tiered",
+        "gain": false,
+        "tiered_transition1": 8,
+        "tiered_transition2": 16,
+        "tiered_input_offset2": 16
+      },
+      "accel_y": {
+        "mode": "tiered",
+        "gain": false,
+        "tiered_transition1": 8,
+        "tiered_transition2": 16,
+        "tiered_input_offset2": 16
+      }
+    }
+  ],
+  "devices": [
+    {
+      "id": "mouseA",
+      "profile_id": "Tiered",
+      "dpi": 800,
+      "polling_rate": 2000
+    },
+    {
+      "id": "mouseB",
+      "disable": true,
+      "clamp_max": 16
+    }
+  ],
+  "default_device_config": {
+    "dpi": 1600,
+    "polling_rate": 1000,
+    "set_extra_info": true,
+    "poll_time_lock": true,
+    "clamp_min": 1,
+    "clamp_max": 8
+  }
+}
