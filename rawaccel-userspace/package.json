@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
+    "test:math": "node --test scripts/math.test.mjs",
     "test:driver-status": "node --test scripts/driver-status.test.mjs",
     "test:abi": "python scripts/check_driver_abi.py",
     "test:validation": "node --test scripts/validation.test.mjs",

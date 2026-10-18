@@ -238,28 +238,35 @@ function createSynchronousEvaluator(args: AccelArgs): Evaluator {
 
   if (!args.gain) {
     return evaluateLegacy;
-  } else {
-    // For UI preview, approximate the Gain mode (which is an integral in the driver)
-    // using a simple discrete sum.
-    const cache = new Map<number, number>();
-    let lastX = 0.001;
-    let sum = evaluateLegacy(lastX) * lastX;
-    
-    return (x: number) => {
-      if (x <= 0) return 0;
-      if (cache.has(x)) return cache.get(x)!;
-      // Step to x
-      const dx = 0.05;
-      while (lastX < x) {
-        const step = Math.min(dx, x - lastX);
-        sum += evaluateLegacy(lastX + step / 2) * step;
-        lastX += step;
-      }
-      const val = sum / x;
-      cache.set(x, val);
-      return val;
-    };
   }
+
+  // common/accel-synchronous.hpp: two right-endpoint partitions per sample,
+  // 8 samples per octave over [2^-3, 2^9], stored as f32 output velocities.
+  const data: number[] = [];
+  let sum = 0;
+  let a = 0;
+  const sample = (b: number) => {
+    const interval = (b - a) / 2;
+    for (let i = 1; i <= 2; i++) {
+      sum += evaluateLegacy(a + i * interval) * interval;
+    }
+    a = b;
+    data.push(Math.fround(sum));
+  };
+  for (let e = -3; e < 9; e++) {
+    const scale = 2 ** e / 8;
+    for (let i = 0; i < 8; i++) sample((i + 8) * scale);
+  }
+  sample(2 ** 9);
+
+  return (x: number) => {
+    if (x < 0.125) return data[0] / 0.125;
+    const e = Math.min(Math.floor(Math.log2(x)), 8);
+    const idxF = 8 * ((e + 3) + (x * 2 ** -e - 1));
+    const idx = Math.min(Math.trunc(idxF), data.length - 2);
+    const y = data[idx] + (idxF - idx) * (data[idx + 1] - data[idx]);
+    return y / x;
+  };
 }
 
 function classic_base_fn(x: number, accel_raised: number, args: AccelArgs): number {
