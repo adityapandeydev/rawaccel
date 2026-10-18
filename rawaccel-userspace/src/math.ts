@@ -6,6 +6,12 @@ import { AccelArgs } from "./types";
 
 export type Evaluator = (x: number) => number;
 
+// common/accel-lookup.hpp clamps interpolation roundoff at the segment endpoint.
+function lerp(a: number, b: number, t: number): number {
+  const x = a + t * (b - a);
+  return (t > 1) === (a < b) ? Math.max(x, b) : Math.min(x, b);
+}
+
 export function createEvaluator(args: AccelArgs): Evaluator {
   switch (args.mode) {
     case "tiered":
@@ -37,7 +43,7 @@ function createLookupEvaluator(args: AccelArgs): Evaluator {
     return () => 1.0;
   }
 
-  const points = args.lookup_table;
+  const points = args.lookup_table.map(({ x, y }) => ({ x: Math.fround(x), y: Math.fround(y) }));
 
   const sensitivityFromStoredValue = (storedY: number, x: number) =>
     args.gain ? storedY / x : storedY;
@@ -51,21 +57,17 @@ function createLookupEvaluator(args: AccelArgs): Evaluator {
     }
 
     for (let i = 0; i < points.length - 1; i++) {
-      if (x <= points[i + 1].x) {
-        const dx = points[i + 1].x - points[i].x;
+      if (x === points[i].x) return sensitivityFromStoredValue(points[i].y, x);
+      if (x < points[i + 1].x || i === points.length - 2) {
+        const dx = Math.fround(points[i + 1].x - points[i].x);
         if (dx <= 0) return 1.0;
         const t = (x - points[i].x) / dx;
-        const y = points[i].y + t * (points[i + 1].y - points[i].y);
+        const y = lerp(points[i].y, points[i + 1].y, t);
         return sensitivityFromStoredValue(y, x);
       }
     }
 
-    // The C++ implementation linearly extrapolates beyond the final point.
-    const previous = points[points.length - 2];
-    const last = points[points.length - 1];
-    const t = (x - previous.x) / (last.x - previous.x);
-    const y = previous.y + t * (last.y - previous.y);
-    return sensitivityFromStoredValue(y, x);
+    return 1.0;
   };
 }
 
