@@ -5,7 +5,7 @@ use tauri::{AppHandle, Emitter};
 use windows::Win32::Foundation::{HWND, LPARAM, LRESULT, WPARAM};
 use windows::Win32::System::LibraryLoader::GetModuleHandleW;
 use windows::Win32::UI::Input::{
-    GetRawInputData, RegisterRawInputDevices, HRAWINPUT, RAWINPUT, RAWINPUTDEVICE, RAWINPUTHEADER,
+    GetRawInputData, RegisterRawInputDevices, HRAWINPUT, RAWINPUTDEVICE, RAWINPUTHEADER,
     RIDEV_INPUTSINK, RID_INPUT,
 };
 use windows::Win32::UI::WindowsAndMessaging::{
@@ -35,41 +35,40 @@ unsafe extern "system" fn window_proc(
 ) -> LRESULT {
     const WM_INPUT: u32 = 0x00FF;
     if msg == WM_INPUT {
-        let mut size = 0;
-        let _ = GetRawInputData(
-            HRAWINPUT(lparam.0 as _),
-            RID_INPUT,
-            None,
-            &mut size,
-            std::mem::size_of::<RAWINPUTHEADER>() as u32,
-        );
-
-        if size > 0 {
-            let mut buffer = vec![0u8; size as usize];
-            if GetRawInputData(
-                HRAWINPUT(lparam.0 as _),
-                RID_INPUT,
-                Some(buffer.as_mut_ptr() as _),
-                &mut size,
-                std::mem::size_of::<RAWINPUTHEADER>() as u32,
-            ) != u32::MAX
-            {
-                let raw = &*(buffer.as_ptr() as *const RAWINPUT);
-                if raw.header.dwType == 0 {
-                    // RIM_TYPEMOUSE
-                    let mouse = raw.data.mouse;
-                    if (mouse.usFlags.0 & 0x01) == 0 {
-                        // MOUSE_MOVE_RELATIVE
-                        if let Ok(mut state) = MOUSE_STATE.lock() {
-                            state.dx += mouse.lLastX as f64;
-                            state.dy += mouse.lLastY as f64;
-                        }
-                    }
-                }
+        if let Some((x, y)) = read_mouse(HRAWINPUT(lparam.0 as _)) {
+            if let Ok(mut state) = MOUSE_STATE.lock() {
+                state.dx += x as f64;
+                state.dy += y as f64;
             }
         }
     }
+
     DefWindowProcW(hwnd, msg, wparam, lparam)
+}
+
+fn read_mouse(handle: HRAWINPUT) -> Option<(i32, i32)> {
+    let mut size = 0u32;
+    let header = std::mem::size_of::<RAWINPUTHEADER>() as u32;
+    // With no output buffer, success is zero and size is the required byte count.
+    if unsafe { GetRawInputData(handle, RID_INPUT, None, &mut size, header) } != 0 || size < header
+    {
+        return None;
+    }
+    let requested = size;
+    let mut buffer = crate::input_buffers::InputBuffer::new(size)?;
+    let returned = unsafe {
+        GetRawInputData(
+            handle,
+            RID_INPUT,
+            Some(buffer.as_mut_ptr()),
+            &mut size,
+            header,
+        )
+    };
+    if returned == u32::MAX || returned > requested || size > requested || returned != size {
+        return None;
+    }
+    crate::input_buffers::relative_mouse(buffer.bytes(returned)?)
 }
 
 pub fn start(app_handle: AppHandle) {

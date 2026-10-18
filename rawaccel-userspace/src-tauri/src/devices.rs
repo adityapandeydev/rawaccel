@@ -8,7 +8,9 @@ use windows::Win32::Devices::DeviceAndDriverInstallation::{
 use windows::Win32::Devices::HumanInterfaceDevice::{
     HidD_GetManufacturerString, HidD_GetProductString,
 };
-use windows::Win32::Devices::Properties::{DEVPKEY_Device_InstanceId, DEVPROPTYPE};
+use windows::Win32::Devices::Properties::{
+    DEVPKEY_Device_InstanceId, DEVPROPTYPE, DEVPROP_TYPE_STRING,
+};
 use windows::Win32::Foundation::{CloseHandle, INVALID_HANDLE_VALUE};
 use windows::Win32::Storage::FileSystem::{
     CreateFileW, FILE_FLAGS_AND_ATTRIBUTES, FILE_SHARE_READ, FILE_SHARE_WRITE, OPEN_EXISTING,
@@ -27,18 +29,40 @@ pub struct DeviceInfo {
 const HID_STR_MAX_LEN: usize = 127;
 
 fn get_device_list() -> Option<Vec<RAWINPUTDEVICELIST>> {
-    let mut num_devs = 0u32;
-    let elem_size = std::mem::size_of::<RAWINPUTDEVICELIST>() as u32;
+    read_device_list(|output, count| unsafe {
+        GetRawInputDeviceList(
+            output.map(|b| b.as_mut_ptr()),
+            count,
+            std::mem::size_of::<RAWINPUTDEVICELIST>() as u32,
+        )
+    })
+}
 
-    unsafe {
-        if GetRawInputDeviceList(None, &mut num_devs, elem_size) == 0 {
-            let mut dev_list: Vec<RAWINPUTDEVICELIST> = Vec::with_capacity(num_devs as usize);
-            let res = GetRawInputDeviceList(Some(dev_list.as_mut_ptr()), &mut num_devs, elem_size);
-            if res != u32::MAX {
-                dev_list.set_len(num_devs as usize);
-                return Some(dev_list);
-            }
+fn read_device_list(
+    mut read: impl FnMut(Option<&mut [RAWINPUTDEVICELIST]>, &mut u32) -> u32,
+) -> Option<Vec<RAWINPUTDEVICELIST>> {
+    // Devices may arrive/disappear between the two API calls. Retry a fresh query.
+    for _ in 0..3 {
+        let mut count = 0;
+        if read(None, &mut count) != 0 {
+            return None;
         }
+        if count == 0 {
+            return Some(vec![]);
+        }
+        let mut list = Vec::new();
+        list.try_reserve_exact(count as usize).ok()?;
+        list.resize(count as usize, RAWINPUTDEVICELIST::default());
+        let returned = read(Some(&mut list), &mut count);
+        if returned == u32::MAX {
+            continue;
+        }
+        if count as usize > list.len() || returned as usize > list.len() {
+            return None;
+        }
+        // The return value is the number actually copied, not the original query count.
+        list.truncate(returned as usize);
+        return Some(list);
     }
     None
 }
@@ -66,17 +90,42 @@ pub fn get_connected_devices() -> Vec<DeviceInfo> {
             }
         }
 
-        let mut interface_name: Vec<u16> = vec![0; name_len as usize];
-        unsafe {
-            if GetRawInputDeviceInfoW(
+        let capacity = match name_len.checked_add(1) {
+            Some(n) if n > 1 => n,
+            _ => continue,
+        };
+        let mut interface_buffer = match capacity
+            .checked_mul(2)
+            .and_then(crate::input_buffers::InputBuffer::new)
+        {
+            Some(buffer) => buffer,
+            None => continue,
+        };
+        name_len = capacity;
+        let returned = unsafe {
+            GetRawInputDeviceInfoW(
                 Some(handle),
                 RIDI_DEVICENAME,
-                Some(interface_name.as_mut_ptr() as *mut _),
+                Some(interface_buffer.as_mut_ptr()),
                 &mut name_len,
-            ) == u32::MAX
-            {
-                continue;
-            }
+            )
+        };
+        if returned == u32::MAX || returned > capacity || name_len > capacity {
+            continue;
+        }
+        let name_bytes = match name_len
+            .checked_mul(2)
+            .and_then(|n| interface_buffer.bytes(n))
+        {
+            Some(bytes) => bytes,
+            None => continue,
+        };
+        let interface_name: Vec<u16> = name_bytes
+            .chunks_exact(2)
+            .map(|c| u16::from_le_bytes([c[0], c[1]]))
+            .collect();
+        if crate::input_buffers::terminated(&interface_name).is_none() {
+            continue;
         }
 
         let mut name_str = String::new();
@@ -99,10 +148,12 @@ pub fn get_connected_devices() -> Vec<DeviceInfo> {
                         product_buf.as_mut_ptr() as *mut _,
                         (HID_STR_MAX_LEN * 2) as u32,
                     ) {
-                        let product_sv = OsString::from_wide(&product_buf)
-                            .to_string_lossy()
-                            .trim_end_matches('\0')
-                            .to_string();
+                        let product_sv = OsString::from_wide(
+                            crate::input_buffers::terminated(&product_buf).unwrap_or(&[]),
+                        )
+                        .to_string_lossy()
+                        .trim_end_matches('\0')
+                        .to_string();
 
                         let mut manufacturer_buf = [0u16; HID_STR_MAX_LEN];
                         if HidD_GetManufacturerString(
@@ -110,10 +161,12 @@ pub fn get_connected_devices() -> Vec<DeviceInfo> {
                             manufacturer_buf.as_mut_ptr() as *mut _,
                             (HID_STR_MAX_LEN * 2) as u32,
                         ) {
-                            let manufacturer_sv = OsString::from_wide(&manufacturer_buf)
-                                .to_string_lossy()
-                                .trim_end_matches('\0')
-                                .to_string();
+                            let manufacturer_sv = OsString::from_wide(
+                                crate::input_buffers::terminated(&manufacturer_buf).unwrap_or(&[]),
+                            )
+                            .to_string_lossy()
+                            .trim_end_matches('\0')
+                            .to_string();
 
                             if product_sv.starts_with(&manufacturer_sv) {
                                 name_str = product_sv;
@@ -145,7 +198,14 @@ pub fn get_connected_devices() -> Vec<DeviceInfo> {
                 continue;
             }
 
-            let mut id_buf: Vec<u8> = vec![0; id_size as usize];
+            if prop_type != DEVPROP_TYPE_STRING || id_size < 2 {
+                continue;
+            }
+            let mut id_buf = Vec::new();
+            if id_buf.try_reserve_exact(id_size as usize).is_err() {
+                continue;
+            }
+            id_buf.resize(id_size as usize, 0u8);
             let cm_res2 = CM_Get_Device_Interface_PropertyW(
                 PCWSTR(interface_name.as_ptr()),
                 &DEVPKEY_Device_InstanceId,
@@ -155,17 +215,14 @@ pub fn get_connected_devices() -> Vec<DeviceInfo> {
                 0,
             );
 
-            if cm_res2 != CR_SUCCESS {
+            if cm_res2 != CR_SUCCESS || prop_type != DEVPROP_TYPE_STRING {
                 continue;
             }
 
-            let id_utf16: &[u16] =
-                std::slice::from_raw_parts(id_buf.as_ptr() as *const u16, id_size as usize / 2);
-
-            let mut id_str = OsString::from_wide(id_utf16)
-                .to_string_lossy()
-                .trim_end_matches('\0')
-                .to_string();
+            let mut id_str = match crate::input_buffers::property_string(&id_buf, id_size) {
+                Some(id) => id,
+                None => continue,
+            };
 
             if let Some(idx) = id_str.rfind('\\') {
                 id_str = id_str[..idx].to_string();
@@ -181,4 +238,70 @@ pub fn get_connected_devices() -> Vec<DeviceInfo> {
     }
 
     devices
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn list_growth_retries_and_uses_actual_copied_count() {
+        let mut calls = 0;
+        let list = read_device_list(|output, count| {
+            calls += 1;
+            match calls {
+                1 => {
+                    assert!(output.is_none());
+                    *count = 1;
+                    0
+                }
+                2 => {
+                    assert_eq!(output.unwrap().len(), 1);
+                    *count = 3;
+                    u32::MAX
+                }
+                3 => {
+                    *count = 3;
+                    0
+                }
+                4 => {
+                    assert_eq!(output.unwrap().len(), 3);
+                    2
+                }
+                _ => panic!("Unexpected retry"),
+            }
+        })
+        .unwrap();
+        assert_eq!(list.len(), 2);
+    }
+    #[test]
+    fn list_reader_bounds_count_and_retries() {
+        assert!(read_device_list(|out, count| {
+            if out.is_none() {
+                *count = 1;
+                0
+            } else {
+                *count = 2;
+                2
+            }
+        })
+        .is_none());
+        let mut calls = 0;
+        assert!(read_device_list(|out, count| {
+            calls += 1;
+            if out.is_none() {
+                *count = 1;
+                0
+            } else {
+                u32::MAX
+            }
+        })
+        .is_none());
+        assert_eq!(calls, 6);
+        assert!(read_device_list(|_, count| {
+            *count = 0;
+            0
+        })
+        .unwrap()
+        .is_empty());
+    }
 }
