@@ -150,15 +150,7 @@ impl AppConfig {
         if self.profiles.is_empty() {
             return Err("At least one profile is required".to_string());
         }
-        if let Some(defaults) = &self.default_device_config {
-            crate::validation::device_numbers(defaults.dpi, defaults.polling_rate, defaults.clamp_min, defaults.clamp_max, models::time_clamp::default())?;
-            let native = defaults.to_native();
-            if defaults.dpi > i32::MAX as u32 || defaults.polling_rate > i32::MAX as u32
-                || !defaults.clamp_min.is_finite() || !defaults.clamp_max.is_finite()
-                || native.clamp.min <= 0.0 || native.clamp.max < native.clamp.min {
-                return Err("Invalid default device DPI, polling rate, or time clamps".to_string());
-            }
-        }
+        if let Some(defaults) = &self.default_device_config { defaults.to_native()?; }
 
         let mut profile_names = std::collections::HashSet::new();
         for profile in &self.profiles {
@@ -171,26 +163,10 @@ impl AppConfig {
                 return Err(format!("Duplicate profile name '{}'", profile.name));
             }
 
-            for (axis, args) in [("X", &profile.accel_x), ("Y", &profile.accel_y)] {
-                if !["noaccel", "linear", "classic", "jump", "natural", "synchronous", "power", "lookup", "tiered"].contains(&args.mode.as_str()) {
-                    return Err(format!("Profile '{}' {axis}: unknown acceleration mode '{}'", profile.name, args.mode));
-                }
-                if !["in", "out", "io"].contains(&args.cap_mode.as_str()) {
-                    return Err(format!("Profile '{}' {axis}: unknown cap mode '{}'", profile.name, args.cap_mode));
-                }
-                if !["linear", "natural"].contains(&args.t_type.as_str()) {
-                    return Err(format!("Profile '{}' {axis}: unknown Tiered subtype '{}'", profile.name, args.t_type));
-                }
-            }
-
-            validate_accel_args(&profile.name, "X", &profile.accel_x)?;
-
-            // init_data precomputes both curves, including Y in Combined mode.
-            validate_accel_args(&profile.name, "Y", &profile.accel_y)?;
-            crate::validation::profile_numbers(profile)?;
+            validate_profile(profile)?;
         }
 
-        let inherited = self.default_device_config.as_ref().map(|d| d.to_native().clamp).unwrap_or_default();
+        let inherited = self.default_device_config.as_ref().map(|d| d.to_native()).transpose()?.map(|d| d.clamp).unwrap_or_default();
         let mut device_ids = std::collections::HashSet::new();
         for dev in &self.devices {
             crate::validation::wire_string(&dev.id, models::MAX_DEV_ID_LEN, "Device ID")?;
@@ -210,6 +186,14 @@ impl AppConfig {
 
         Ok(())
     }
+}
+
+fn validate_profile(profile: &AppProfile) -> Result<(), String> {
+    crate::validation::wire_string(&profile.name, models::MAX_NAME_LEN, "Profile name")?;
+    validate_accel_args(&profile.name, "X", &profile.accel_x)?;
+    // init_data precomputes Y even in Combined mode.
+    validate_accel_args(&profile.name, "Y", &profile.accel_y)?;
+    crate::validation::profile_numbers(profile)
 }
 
 fn validate_lookup_table(
@@ -260,6 +244,16 @@ fn validate_accel_args(
     axis: &str,
     args: &AppAccelArgs,
 ) -> Result<(), String> {
+
+                if !["noaccel", "linear", "classic", "jump", "natural", "synchronous", "power", "lookup", "tiered"].contains(&args.mode.as_str()) {
+                    return Err(format!("Profile '{}' {axis}: unknown acceleration mode '{}'", profile_name, args.mode));
+                }
+                if !["in", "out", "io"].contains(&args.cap_mode.as_str()) {
+                    return Err(format!("Profile '{}' {axis}: unknown cap mode '{}'", profile_name, args.cap_mode));
+                }
+                if !["linear", "natural"].contains(&args.t_type.as_str()) {
+                    return Err(format!("Profile '{}' {axis}: unknown Tiered subtype '{}'", profile_name, args.t_type));
+                }
     crate::validation::accel_numbers(args).map_err(|error| format!("Profile '{profile_name}' {axis}: {error}"))?;
     validate_lookup_table(profile_name, axis, args)?;
     let requires_cap = args.mode == "jump" || (["classic", "linear", "power"].contains(&args.mode.as_str()) && args.cap_mode == "io");
@@ -378,9 +372,10 @@ pub struct AppDeviceDefaults {
 }
 
 impl AppDeviceDefaults {
-    pub fn to_native(&self) -> models::device_config {
+    pub fn to_native(&self) -> Result<models::device_config, String> {
+        crate::validation::device_numbers(self.dpi, self.polling_rate, self.clamp_min, self.clamp_max, models::time_clamp::default())?;
         let defaults = models::time_clamp::default();
-        models::device_config {
+        Ok(models::device_config {
             disable: self.disable,
             set_extra_info: self.set_extra_info,
             poll_time_lock: self.poll_time_lock,
@@ -390,7 +385,7 @@ impl AppDeviceDefaults {
                 min: if self.clamp_min == 0.0 { defaults.min } else { self.clamp_min },
                 max: if self.clamp_max == 0.0 { defaults.max } else { self.clamp_max },
             },
-        }
+        })
     }
 }
 
@@ -546,7 +541,8 @@ impl Default for AppAccelArgs {
 }
 
 impl AppProfile {
-    pub fn to_native(&self) -> models::profile {
+    pub fn to_native(&self) -> Result<models::profile, String> {
+        validate_profile(self)?;
         let mut prof = models::profile::default();
 
         let mut name_u16 = [0u16; models::MAX_NAME_LEN];
@@ -560,75 +556,34 @@ impl AppProfile {
         }
         prof.name = name_u16;
 
-        prof.accel_x = self.accel_x.to_native();
-        prof.accel_y = self.accel_y.to_native();
+        prof.accel_x = self.accel_x.to_native()?;
+        prof.accel_y = self.accel_y.to_native()?;
         prof.degrees_rotation = self.degrees_rotation;
         prof.degrees_snap = self.degrees_snap;
         prof.speed_min = self.speed_min;
         prof.speed_max = self.speed_max;
-        prof.lr_output_dpi_ratio = if self.lr_output_dpi_ratio <= 0.0 {
-            1.0
-        } else {
-            self.lr_output_dpi_ratio
-        };
-        prof.ud_output_dpi_ratio = if self.ud_output_dpi_ratio <= 0.0 {
-            1.0
-        } else {
-            self.ud_output_dpi_ratio
-        };
-        prof.output_dpi = if self.output_dpi <= 0.0 {
-            1000.0
-        } else {
-            self.output_dpi
-        };
-        prof.yx_output_dpi_ratio = if self.yx_output_dpi_ratio <= 0.0 {
-            1.0
-        } else {
-            self.yx_output_dpi_ratio
-        };
-        prof.range_weights = models::vec2d {
-            x: if self.range_weights.x < 0.0 {
-                1.0
-            } else {
-                self.range_weights.x
-            },
-            y: if self.range_weights.y < 0.0 {
-                1.0
-            } else {
-                self.range_weights.y
-            },
-        };
-        prof.domain_weights = models::vec2d {
-            x: if self.domain_weights.x <= 0.0 {
-                1.0
-            } else {
-                self.domain_weights.x
-            },
-            y: if self.domain_weights.y <= 0.0 {
-                1.0
-            } else {
-                self.domain_weights.y
-            },
-        };
+        prof.lr_output_dpi_ratio = self.lr_output_dpi_ratio;
+        prof.ud_output_dpi_ratio = self.ud_output_dpi_ratio;
+        prof.output_dpi = self.output_dpi;
+        prof.yx_output_dpi_ratio = self.yx_output_dpi_ratio;
+        prof.range_weights = models::vec2d { x: self.range_weights.x, y: self.range_weights.y };
+        prof.domain_weights = models::vec2d { x: self.domain_weights.x, y: self.domain_weights.y };
 
         prof.speed_processor_args = models::speed_args {
             whole: self.speed_processor_args.whole,
-            lp_norm: if self.speed_processor_args.lp_norm <= 0.0 {
-                2.0
-            } else {
-                self.speed_processor_args.lp_norm
-            },
+            lp_norm: self.speed_processor_args.lp_norm,
             input_speed_smooth_halflife: self.speed_processor_args.input_speed_smooth_halflife,
             scale_smooth_halflife: self.speed_processor_args.scale_smooth_halflife,
             output_speed_smooth_halflife: self.speed_processor_args.output_speed_smooth_halflife,
         };
 
-        prof
+        Ok(prof)
     }
 }
 
 impl AppAccelArgs {
-    pub fn to_native(&self) -> models::accel_args {
+    pub fn to_native(&self) -> Result<models::accel_args, String> {
+        validate_accel_args("Curve", "", self)?;
         let mut args = models::accel_args::default();
 
         args.mode = match self.mode.as_str() {
@@ -645,59 +600,30 @@ impl AppAccelArgs {
         args.gain = self.gain;
         args.input_offset = self.input_offset;
         args.output_offset = self.output_offset;
-        args.acceleration = if self.acceleration <= 0.0 {
-            0.001
-        } else {
-            self.acceleration
-        };
-        args.decay_rate = if self.decay_rate <= 0.0 {
-            0.1
-        } else {
-            self.decay_rate
-        };
-        args.gamma = if self.gamma <= 0.0 { 1.0 } else { self.gamma };
-        args.motivity = if self.motivity <= 1.0 {
-            1.5
-        } else {
-            self.motivity
-        };
-        args.exponent_classic = if self.mode.as_str() == "linear" {
-            2.0
-        } else if self.exponent_classic <= 1.0 {
-            2.0
-        } else {
-            self.exponent_classic
-        };
-        args.scale = if self.scale <= 0.0 { 1.0 } else { self.scale };
-        args.exponent_power = if self.exponent_power <= 0.0 {
-            0.05
-        } else {
-            self.exponent_power
-        };
-        args.limit = if self.limit <= 0.0 { 2.0 } else { self.limit };
-        args.sync_speed = if self.sync_speed <= 0.0 {
-            5.0
-        } else {
-            self.sync_speed
-        };
-        args.smooth = if self.smooth < 0.0 || self.smooth > 1.0 {
-            0.0
-        } else {
-            self.smooth
-        };
+        args.acceleration = self.acceleration;
+        args.decay_rate = self.decay_rate;
+        args.gamma = self.gamma;
+        args.motivity = self.motivity;
+        args.scale = self.scale;
+        args.exponent_power = self.exponent_power;
+        args.limit = self.limit;
+        args.sync_speed = self.sync_speed;
+        args.smooth = self.smooth;
+        // Linear is the UI alias for Classic with exponent 2.
+        args.exponent_classic = if self.mode == "linear" { 2.0 } else { self.exponent_classic };
         args.t_type = match self.t_type.as_str() {
             "natural" => models::tiered_type::natural,
             _ => models::tiered_type::linear,
         };
-        args.tiered_multiplier1 = if self.tiered_multiplier1 <= 0.0 { 1.0 } else { self.tiered_multiplier1 };
-        args.tiered_input_offset1 = if self.tiered_input_offset1 < 0.0 { 0.0 } else { self.tiered_input_offset1 };
-        args.tiered_multiplier2 = if self.tiered_multiplier2 <= 0.0 { 1.5 } else { self.tiered_multiplier2 };
-        args.tiered_transition1 = if self.tiered_transition1 <= 0.0 { 10.0 } else { self.tiered_transition1 };
-        args.tiered_input_offset2 = if self.tiered_input_offset2 <= self.tiered_input_offset1 { self.tiered_input_offset1 + 15.0 } else { self.tiered_input_offset2 };
-        args.tiered_multiplier3 = if self.tiered_multiplier3 <= 0.0 { 2.0 } else { self.tiered_multiplier3 };
-        args.tiered_transition2 = if self.tiered_transition2 <= 0.0 { 25.0 } else { self.tiered_transition2 };
-        args.tiered_decay_rate1 = if self.tiered_decay_rate1 <= 0.0 { 0.1 } else { self.tiered_decay_rate1 };
-        args.tiered_decay_rate2 = if self.tiered_decay_rate2 <= 0.0 { 0.1 } else { self.tiered_decay_rate2 };
+        args.tiered_multiplier1 = self.tiered_multiplier1;
+        args.tiered_input_offset1 = self.tiered_input_offset1;
+        args.tiered_multiplier2 = self.tiered_multiplier2;
+        args.tiered_transition1 = self.tiered_transition1;
+        args.tiered_input_offset2 = self.tiered_input_offset2;
+        args.tiered_multiplier3 = self.tiered_multiplier3;
+        args.tiered_transition2 = self.tiered_transition2;
+        args.tiered_decay_rate1 = self.tiered_decay_rate1;
+        args.tiered_decay_rate2 = self.tiered_decay_rate2;
         args.cap = models::vec2d {
             x: self.cap.x,
             y: self.cap.y,
@@ -708,8 +634,7 @@ impl AppAccelArgs {
             _ => models::cap_mode::out,
         };
 
-        let max_points = models::LUT_RAW_DATA_CAPACITY / 2;
-        let num_points = std::cmp::min(self.lookup_table.len(), max_points);
+        let num_points = self.lookup_table.len();
 
         // `length` is the number of raw f32 values, not the number of points.
         // The C++ lookup implementation derives point count with `length / 2`.
@@ -719,7 +644,7 @@ impl AppAccelArgs {
             args.data[i * 2 + 1] = self.lookup_table[i].y as f32;
         }
 
-        args
+        Ok(args)
     }
 }
 
@@ -730,7 +655,7 @@ mod tests {
     #[test]
     fn shared_defaults_match_native_acceleration_and_speed_defaults() {
         assert_eq!(crate::settings_defaults::document()["schema_version"], SETTINGS_SCHEMA_VERSION);
-        let actual = AppAccelArgs::default().to_native();
+        let actual = AppAccelArgs::default().to_native().unwrap();
         let expected = models::accel_args::default();
         assert_eq!(actual.mode, expected.mode);
         assert_eq!(actual.gain, expected.gain);
@@ -842,7 +767,7 @@ mod tests {
         let args = &config.profiles[0].accel_y;
         assert_eq!(args.lookup_csv_backup.as_ref().unwrap()[0].y, 3.0);
         assert_eq!(args.lookup_csv_backup_gain, Some(false));
-        assert_eq!(args.to_native().data[..4], [1.0, 2.0, 8.0, 12.0]);
+        assert_eq!(args.to_native().unwrap().data[..4], [1.0, 2.0, 8.0, 12.0]);
         assert_eq!(normalize_settings_json(&document.to_string()).unwrap(), original);
     }
 
@@ -856,7 +781,7 @@ mod tests {
         assert_eq!(profile.accel_x.mode, "natural");
         assert_eq!(profile.accel_x.input_offset, 3.0);
         assert_eq!(profile.accel_y.mode, "lookup");
-        assert_eq!(profile.accel_y.to_native().data[..4], [1.0, 2.0, 5.0, 3.0]);
+        assert_eq!(profile.accel_y.to_native().unwrap().data[..4], [1.0, 2.0, 5.0, 3.0]);
         assert_eq!(profile.speed_processor_args.input_speed_smooth_halflife, 2.0);
         assert_eq!(profile.speed_processor_args.scale_smooth_halflife, 4.0);
         assert_eq!(profile.speed_processor_args.output_speed_smooth_halflife, 6.0);
@@ -865,7 +790,7 @@ mod tests {
         assert_eq!(device.clamp_min, 0.125);
         assert_eq!(device.polling_rate, 1000);
         assert_eq!(device.profile_id.as_deref(), Some("Legacy Natural"));
-        let defaults = config.default_device_config.unwrap().to_native();
+        let defaults = config.default_device_config.unwrap().to_native().unwrap();
         assert_eq!(defaults.dpi, 800);
         assert!(defaults.set_extra_info && defaults.poll_time_lock);
         assert_eq!(defaults.clamp.max, 90.0);
@@ -962,7 +887,7 @@ mod tests {
             ..Default::default()
         };
 
-        let native = args.to_native();
+        let native = args.to_native().unwrap();
         assert_eq!(native.length, 4);
         assert_eq!(native.data[..4], [1.0, 2.0, 4.0, 8.0]);
         assert!(native.gain);
