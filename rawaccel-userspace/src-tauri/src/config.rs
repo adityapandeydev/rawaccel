@@ -162,6 +162,7 @@ impl AppConfig {
 
         let mut profile_names = std::collections::HashSet::new();
         for profile in &self.profiles {
+            crate::validation::wire_string(&profile.name, models::MAX_NAME_LEN, "Profile name")?;
             let trimmed = profile.name.trim();
             if trimmed.is_empty() {
                 return Err("Profile name cannot be empty".to_string());
@@ -190,10 +191,14 @@ impl AppConfig {
         }
 
         let inherited = self.default_device_config.as_ref().map(|d| d.to_native().clamp).unwrap_or_default();
+        let mut device_ids = std::collections::HashSet::new();
         for dev in &self.devices {
+            crate::validation::wire_string(&dev.id, models::MAX_DEV_ID_LEN, "Device ID")?;
+            if !device_ids.insert(&dev.id) { return Err(format!("Duplicate device ID '{}'", dev.id)); }
             crate::validation::device_numbers(dev.dpi, dev.polling_rate, dev.clamp_min, dev.clamp_max, inherited)
                 .map_err(|error| format!("Device '{}': {error}", dev.id))?;
             if let Some(ref pid) = dev.profile_id {
+                crate::validation::wire_string(pid, models::MAX_NAME_LEN, "Mapped profile name")?;
                 if !self.profiles.iter().any(|p| p.name == *pid) {
                     return Err(format!(
                         "Device '{}' references non-existent profile '{}'",

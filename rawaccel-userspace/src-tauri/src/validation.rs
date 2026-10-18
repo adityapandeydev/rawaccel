@@ -116,6 +116,20 @@ pub(crate) fn device_numbers(
     Ok(())
 }
 
+/// Wire strings must fit with their terminating NUL, without splitting UTF-16 pairs.
+pub(crate) fn wire_string(value: &str, capacity: usize, label: &str) -> Result<(), String> {
+    if value.trim().is_empty() || value.contains('\0') {
+        return Err(format!("{label} must be nonempty and cannot contain NUL"));
+    }
+    if value.encode_utf16().count() >= capacity {
+        return Err(format!(
+            "{label} exceeds {} UTF-16 code units",
+            capacity - 1
+        ));
+    }
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -126,6 +140,28 @@ mod tests {
             devices: vec![],
             default_device_config: None,
         }
+    }
+    #[test]
+    fn wire_strings_are_bounded_in_utf16_without_truncation() {
+        assert!(wire_string(&"a".repeat(255), 256, "Name").is_ok());
+        assert!(wire_string(&"a".repeat(256), 256, "Name").is_err());
+        assert!(wire_string(&("\u{1f600}".repeat(127) + "a"), 256, "Name").is_ok());
+        assert!(wire_string(&"\u{1f600}".repeat(128), 256, "Name").is_err());
+        assert!(wire_string("a\0b", 256, "Name").is_err());
+        let mut c = config();
+        c.profiles[0].name = "\u{1f600}".repeat(128);
+        assert!(c.validate().is_err());
+        c.profiles[0].name = "Valid".into();
+        c.devices.push(AppDeviceConfig {
+            id: "d".repeat(199),
+            ..Default::default()
+        });
+        c.validate().unwrap();
+        c.devices.push(c.devices[0].clone());
+        assert!(c.validate().is_err());
+        c.devices.pop();
+        c.devices[0].id.push('d');
+        assert!(c.validate().is_err());
     }
     #[test]
     fn rejects_nonfinite_numbers_including_inactive_curve_fields() {
