@@ -25,6 +25,7 @@ export function CurveParameters({ editor, tieredApplyEnabled, notify: setModalSt
       <div className="panel-header" style={{ marginBottom: "1.5rem", display: "flex", alignItems: "center", gap: "1rem" }}>
         <div style={{ flex: 1 }}>
           <CustomSelect
+            label="Acceleration mode"
             width="100%"
             value={activeAccel.mode}
             onChange={(val) => {

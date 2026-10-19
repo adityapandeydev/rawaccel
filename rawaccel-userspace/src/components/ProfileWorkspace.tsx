@@ -14,10 +14,10 @@ export function ProfileWorkspace({ editor, tieredApplyEnabled, visibleGraphs, is
   const { activeProfile, linkXY, updateActiveProfile, updateProfile } = editor;
   const tieredPreview = !tieredApplyEnabled && (activeProfile.accel_x.mode === 'tiered' || activeProfile.accel_y.mode === 'tiered');
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "340px 1fr", padding: "0 1.5rem 1.5rem 1.5rem", gap: "1.5rem", flex: 1, minHeight: 0, overflow: "hidden" }}>
+    <div className="profile-workspace">
 
       {/* Left Column: Mode Selection, Fields & Advanced Config */}
-      <div className="custom-scrollbar" style={{ display: "flex", flexDirection: "column", gap: "1.5rem", height: "100%", overflowY: "auto", paddingRight: "0.5rem", paddingTop: "1.5rem" }}>
+      <div className="profile-inspector custom-scrollbar">
 
         {tieredPreview && <div className="tiered-preview-notice" role="note">
           <strong>Tiered · Preview only</strong>
@@ -30,7 +30,7 @@ export function ProfileWorkspace({ editor, tieredApplyEnabled, visibleGraphs, is
 
       </div>
 
-      <div style={{ display: "flex", flexDirection: "column", height: "100%", overflow: "hidden", paddingTop: "0.25rem" }}>
+      <div className="workspace-graphs">
         <CurveGraph
           whole={activeProfile.speed_processor_args.whole}
           argsX={activeProfile.accel_x}

@@ -9,8 +9,8 @@ const safeParseFloat = (val: string) => {
 export function AdvancedParameters({ editor }: { editor: ProfileEditor }) {
   const { activeProfile, updateProfile, updateSpeed } = editor;
   return (
-    <div className="panel" style={{ padding: "1.5rem" }}>
-      <div className="panel-header" style={{ marginBottom: "1rem", borderBottom: "none", paddingBottom: 0 }}>Advanced Configuration</div>
+    <details className="panel advanced-panel">
+      <summary>Advanced configuration</summary>
 
       <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
 
@@ -83,6 +83,6 @@ export function AdvancedParameters({ editor }: { editor: ProfileEditor }) {
         </div>
 
       </div>
-    </div>
+    </details>
   );
 }

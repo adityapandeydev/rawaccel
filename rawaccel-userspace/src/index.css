@@ -22,7 +22,7 @@
 }
 
 body {
-  font-family: 'Inter', -apple-system, sans-serif;
+  font-family: 'Segoe UI Variable', 'Segoe UI', system-ui, sans-serif;
   background-color: var(--bg-app);
   color: var(--text-main);
   -webkit-font-smoothing: antialiased;
@@ -37,7 +37,7 @@ body {
 }
 
 .mono {
-  font-family: 'Fira Code', monospace;
+  font-family: 'Cascadia Code', Consolas, monospace;
 }
 
 /* Layout */
@@ -49,16 +49,6 @@ body {
   gap: 0;
 }
 
-.sidebar {
-  width: 280px;
-  background-color: var(--bg-panel);
-  border-right: 1px solid var(--border);
-  display: flex;
-  flex-direction: column;
-  padding: 1.25rem;
-  transition: all 0.3s;
-}
-
 .main-content {
   flex: 1;
   background-color: var(--bg-app);
@@ -67,35 +57,7 @@ body {
   transition: all 0.3s;
 }
 
-.main-scroll {
-  flex: 1;
-  overflow-y: auto;
-  padding: 2rem;
-  display: flex;
-  gap: 2rem;
-}
-
-/* Navigation Links */
-/* Sidebar Drawer */
-.sidebar-drawer {
-  position: fixed;
-  top: 0;
-  left: -280px;
-  width: 280px;
-  height: 100vh;
-  background-color: var(--bg-app);
-  border-right: 1px solid var(--border);
-  display: flex;
-  flex-direction: column;
-  padding: 1.5rem;
-  transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  z-index: 50;
-  box-shadow: 4px 0 24px rgba(0, 0, 0, 0.1);
-}
-
-.sidebar-drawer.open {
-  left: 0;
-}
+/* Navigation */
 
 .nav-link {
   display: flex;
@@ -173,7 +135,7 @@ body {
   border-radius: var(--radius-sm);
   padding: 0.5rem 0.75rem;
   color: var(--text-main);
-  font-family: 'Fira Code', monospace;
+  font-family: 'Cascadia Code', Consolas, monospace;
   font-size: 0.85rem;
   outline: none;
   width: 90px;

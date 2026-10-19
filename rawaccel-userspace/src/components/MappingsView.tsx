@@ -25,7 +25,7 @@ export function MappingsView({
   ];
 
   return (
-    <div style={{ padding: "1.5rem", height: "100%", width: "100%", overflowY: "auto" }}>
+    <div className="page mappings-page">
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "2rem" }}>
         <div>
           <h2 style={{ fontSize: "1.1rem", margin: 0, fontWeight: 600, color: "var(--text-main)" }}>Hardware Device Bindings</h2>
@@ -53,7 +53,7 @@ export function MappingsView({
             return (
               <div 
                 key={device.id} 
-                className="panel" 
+                className="panel mapping-card"
                 style={{ 
                   display: "flex", 
                   alignItems: "center", 
@@ -80,7 +80,7 @@ export function MappingsView({
                   />
                 </div>
 
-                <div style={{ flex: 1, display: "flex", alignItems: "flex-start", gap: "1rem" }}>
+                <div style={{ flex: 1, minWidth: 180, display: "flex", alignItems: "flex-start", gap: "1rem" }}>
                   <div style={{ padding: "0.75rem", backgroundColor: "var(--bg-app)", borderRadius: "var(--radius-md)", color: isMapped ? "var(--color-primary)" : "var(--text-muted)" }}>
                     <Monitor size={24} />
                   </div>
@@ -93,13 +93,13 @@ export function MappingsView({
                         </span>
                       )}
                     </div>
-                    <span className="mono" style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>{device.id}</span>
+                    <span className="mono" style={{ fontSize: "0.75rem", color: "var(--text-muted)", overflowWrap: "anywhere" }}>{device.id}</span>
                   </div>
                 </div>
 
                 <div style={{ fontSize: "1.5rem", color: "var(--border)" }}>→</div>
 
-                <div style={{ flex: 1 }}>
+                <div style={{ flex: 1, minWidth: 260 }}>
                   <div className="input-group" style={{ margin: 0 }}>
                     <label className="input-label" style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
                       <Activity size={14} /> Assigned Profile

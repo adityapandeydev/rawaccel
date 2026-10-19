@@ -166,8 +166,7 @@ export function CurveGraph({
     icon: React.ReactNode, 
     dataKey: keyof GraphPoint, 
     yLabel: string, 
-    color: string, 
-    isFirst: boolean = false
+    color: string
   ) => {
     const { min: minY, max: maxY } = bounds[dataKey as 'sensitivity' | 'velocity' | 'gain'];
     const pathX = generatePath(dataX, dataKey, minY, maxY);
@@ -183,6 +182,7 @@ export function CurveGraph({
     return (
       <motion.div 
         key={dataKey}
+        className="graph-card"
         layout
         initial={{ opacity: 0, scale: 0.95, y: -20 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -193,17 +193,17 @@ export function CurveGraph({
         <div style={{ 
           display: "flex", 
           alignItems: "center", 
-          justifyContent: "center", 
+          justifyContent: "space-between",
           gap: "0.5rem", 
           marginBottom: "0.4rem", 
-          marginTop: isFirst ? 0 : "0.5rem",
+          marginTop: 0,
           color: "var(--text-main)", 
           fontSize: "0.9rem", 
           fontWeight: 700 
         }}>
-          {icon} <span style={{ letterSpacing: "0.02em" }}>{title}</span>
+          <span className="graph-title">{icon}{title}</span><span className="graph-unit">{yLabel}</span>
         </div>
-        <div style={{ flex: 1, border: "1px solid var(--border)", borderRadius: "var(--radius-md)", backgroundColor: "var(--bg-input)", padding: "1rem 1.5rem 2.5rem 4rem", display: "flex", flexDirection: "column" }}>
+        <div className="graph-plot">
           
           <div style={{ flex: 1, position: "relative" }}>
             {/* Grid Lines & Labels (Unscaled) */}
@@ -358,14 +358,10 @@ export function CurveGraph({
             </svg>
             
             {/* X-Axis Title */}
-            <div style={{ position: "absolute", bottom: "-2.5rem", left: "50%", transform: "translateX(-50%)", fontSize: "0.75rem", fontWeight: 600, color: "var(--text-main)", letterSpacing: "0.02em", whiteSpace: "nowrap" }}>
+            <div style={{ position: "absolute", bottom: "-2.2rem", left: "50%", transform: "translateX(-50%)", fontSize: "0.65rem", fontWeight: 500, color: "var(--text-muted)", whiteSpace: "nowrap" }}>
               Input Speed (counts/ms)
             </div>
             
-            {/* Y-Axis Title */}
-            <div style={{ position: "absolute", top: "50%", left: "-2.75rem", transform: "translate(-50%, -50%) rotate(-90deg)", transformOrigin: "center center", fontSize: "0.75rem", fontWeight: 600, color: "var(--text-main)", letterSpacing: "0.02em", whiteSpace: "nowrap" }}>
-              {yLabel}
-            </div>
           </div>
         </div>
       </motion.div>
@@ -379,7 +375,7 @@ export function CurveGraph({
       </p>
       <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "0.5rem", overflowY: "auto", minHeight: 0 }} className="custom-scrollbar">
         <AnimatePresence mode="popLayout">
-          {visibleGraphs.includes("sensitivity") && renderGraph("Sensitivity", <Zap size={15} color="var(--color-sensitivity)" />, "sensitivity", "Ratio of Output to Input", "var(--color-sensitivity)", true)}
+          {visibleGraphs.includes("sensitivity") && renderGraph("Sensitivity", <Zap size={15} color="var(--color-sensitivity)" />, "sensitivity", "Ratio of Output to Input", "var(--color-sensitivity)")}
           {visibleGraphs.includes("velocity") && renderGraph("Velocity", <Activity size={15} color="var(--color-velocity)" />, "velocity", "Output Velocity (counts/ms)", "var(--color-velocity)")}
           {visibleGraphs.includes("gain") && renderGraph("Gain", <TrendingUp size={15} color="var(--color-gain)" />, "gain", "Slope of Velocity", "var(--color-gain)")}
         </AnimatePresence>

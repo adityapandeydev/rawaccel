@@ -33,7 +33,7 @@ export function DevicesView({
   };
 
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "300px 1fr", gap: "1.5rem", padding: "1.5rem", height: "100%", width: "100%", overflow: "hidden" }}>
+    <div className="page devices-page">
       
       {/* Device List */}
       <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
@@ -52,8 +52,8 @@ export function DevicesView({
               {devices.map(d => {
                 const isSelected = selectedDeviceId === d.id;
                 return (
-                  <li 
-                    key={d.id} 
+                  <li key={d.id}><button type="button"
+                    aria-pressed={isSelected}
                     className={`device-list-item ${isSelected ? "active" : ""}`}
                     onClick={() => setSelectedDeviceId(d.id)}
                     style={{ 
@@ -75,7 +75,7 @@ export function DevicesView({
                     <span style={{ fontSize: "0.9rem", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                       {d.name}
                     </span>
-                  </li>
+                  </button></li>
                 );
               })}
             </ul>
@@ -92,7 +92,7 @@ export function DevicesView({
             </div>
             <p className="mono" style={{ fontSize: "0.75rem", color: "var(--text-muted)", marginBottom: "1.5rem" }}>ID: {selectedDevice.id}</p>
 
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "2rem" }}>
+            <div className="device-fields">
               
               {/* Left Settings */}
               <div>

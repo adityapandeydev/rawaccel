@@ -49,10 +49,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     }
   };
   return (
-    <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column", padding: "1.5rem" }}>
+    <div className="page settings-page">
       
 
-      <div style={{ flex: 1, overflowY: "auto", padding: "1.5rem", display: "flex", flexDirection: "column", gap: "2rem" }}>
+      <div className="settings-grid">
         
         {/* General Settings */}
         <section>
