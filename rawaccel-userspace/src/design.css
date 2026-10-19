@@ -6,6 +6,7 @@
   --bg-input: #13181e;
   --bg-hover: #252e38;
   --border: #323d48;
+  --input-border: #5b6a78;
   --border-focus: #43cbbd;
   --text-main: #edf2f6;
   --text-muted: #a6b3bf;
@@ -27,6 +28,7 @@ body[data-theme='light'] {
   --bg-input: #fff;
   --bg-hover: #e2eaee;
   --border: #c8d2da;
+  --input-border: #7c8c98;
   --border-focus: #08766c;
   --text-main: #192a36;
   --text-muted: #536573;

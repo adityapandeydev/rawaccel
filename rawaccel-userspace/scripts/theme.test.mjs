@@ -24,3 +24,17 @@ for(const [theme,background] of [['dark','#181d23'],['light','#ffffff']]) {
     }
   });
 }
+test('input outlines contrast with both field and panel surfaces', () => {
+  const css=readFileSync(new URL('../src/design.css',import.meta.url),'utf8');
+  const blocks=css.split('}').filter(block=>block.includes('--input-border:'));
+  assert.equal(blocks.length,2);
+  for(const block of blocks) {
+    const color=block.match(/--input-border:\s*(#[a-f0-9]+)/i)[1];
+    for(const token of ['bg-input','bg-panel']) {
+      let background=block.match(new RegExp(`--${token}:\\s*(#[a-f0-9]+)`,'i'))[1];
+      if(background.length===4)background='#'+[...background.slice(1)].map(c=>c+c).join('');
+      const values=[luminance(color),luminance(background)].sort((a,b)=>a-b);
+      assert.ok((values[1]+0.05)/(values[0]+0.05)>=3,`${color} on ${background}`);
+    }
+  }
+});
