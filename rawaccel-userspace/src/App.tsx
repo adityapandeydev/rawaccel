@@ -1,5 +1,6 @@
 import { useDriverStatus } from "./hooks/useDriverStatus";
 import { useDevices } from "./hooks/useDevices";
+import { renameProfileState, deleteProfileState } from "./profileState";
 import { applyBlockReason } from "./driverStatus";
 import { DriverStatusIndicator } from "./components/DriverStatus";
 import { useState, useEffect } from "react";
@@ -46,7 +47,7 @@ function App() {
   const [showToastNotifications, setShowToastNotifications] = useState(true);
   const [showConfirmModals, setShowConfirmModals] = useState(true);
   const [activeCurveAxis, setActiveCurveAxis] = useState<"x" | "y">("x");
-  const [linkXY, setLinkXY] = useState(true);
+  const linkXY = activeProfile.speed_processor_args.whole;
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [visibleGraphs, setVisibleGraphs] = useState<string[]>(["sensitivity"]);
   const [isExpanded, setIsExpanded] = useState(false);
@@ -147,9 +148,7 @@ function App() {
             console.log("Loaded settings from backend:", parsed.profiles);
             setProfiles(parsed.profiles);
             setActiveProfileIndex(0);
-            if (parsed.profiles[0]?.speed_processor_args) {
-              setLinkXY(parsed.profiles[0].speed_processor_args.whole);
-            }
+            setActiveCurveAxis("x");
         }
         if (parsed && parsed.devices) {
             setDeviceConfig(parsed.devices);
@@ -174,10 +173,12 @@ function App() {
   };
 
   const renameProfile = (newName: string) => {
-    const oldName = activeProfile.name;
-    updateActiveProfile(p => ({ ...p, name: newName }));
-    if (oldName && oldName !== newName) {
-      setDeviceConfig(prev => prev.map(d => d.profile_id === oldName ? { ...d, profile_id: newName } : d));
+    try {
+      const next = renameProfileState(profiles, deviceConfig, activeProfileIndex, newName);
+      setProfiles(next.profiles);
+      setDeviceConfig(next.devices);
+    } catch (error) {
+      setModalState({ isOpen: true, title: "Profile Name Already Used", message: String(error) });
     }
   };
 
@@ -223,7 +224,6 @@ function App() {
   };
 
   const handleLinkXY = () => {
-    setLinkXY(true);
     setActiveCurveAxis("x");
     updateActiveProfile(p => ({
       ...p,
@@ -233,7 +233,6 @@ function App() {
   };
 
   const handleSelectXAxis = () => {
-    setLinkXY(false);
     setActiveCurveAxis("x");
     updateActiveProfile(p => ({
       ...p,
@@ -242,7 +241,6 @@ function App() {
   };
 
   const handleSelectYAxis = () => {
-    setLinkXY(false);
     setActiveCurveAxis("y");
     updateActiveProfile(p => ({
       ...p,
@@ -317,6 +315,7 @@ function App() {
                     const nextProfiles = [...profiles, newProfile];
                     setProfiles(nextProfiles);
                     setActiveProfileIndex(nextProfiles.length - 1);
+                    setActiveCurveAxis("x");
                     setIsProfilesExpanded(true);
                     setActiveTab("profiles");
                   } else {
@@ -336,7 +335,6 @@ function App() {
                     key={idx}
                     onClick={() => { 
                       setActiveProfileIndex(idx); 
-                      setLinkXY(profiles[idx].speed_processor_args?.whole ?? true);
                       setActiveCurveAxis("x");
                       navigateTo("profiles"); 
                     }}
@@ -359,12 +357,11 @@ function App() {
                       <div 
                         onClick={(e) => {
                           e.stopPropagation();
-                          const deletedName = profiles[idx].name;
-                          const newProfiles = profiles.filter((_, i) => i !== idx);
-                          setProfiles(newProfiles);
-                          setDeviceConfig(prev => prev.map(d => d.profile_id === deletedName ? { ...d, profile_id: null } : d));
-                          if (activeProfileIndex === idx) setActiveProfileIndex(Math.max(0, idx - 1));
-                          else if (activeProfileIndex > idx) setActiveProfileIndex(activeProfileIndex - 1);
+                          const next = deleteProfileState(profiles, deviceConfig, activeProfileIndex, idx);
+                          setProfiles(next.profiles);
+                          setDeviceConfig(next.devices);
+                          setActiveProfileIndex(next.activeIndex);
+                          if (activeProfileIndex === idx) setActiveCurveAxis("x");
                         }}
                         style={{ padding: "0.15rem", color: "var(--text-muted)", display: "flex", alignItems: "center", justifyContent: "center" }}
                         title="Delete Profile"
@@ -412,9 +409,7 @@ function App() {
                   if (parsed && parsed.profiles && parsed.profiles.length > 0) {
                     setProfiles(parsed.profiles);
                     setActiveProfileIndex(0);
-                    if (parsed.profiles[0]?.speed_processor_args) {
-                      setLinkXY(parsed.profiles[0].speed_processor_args.whole);
-                    }
+                    setActiveCurveAxis("x");
                   }
                   if (parsed && parsed.devices) {
                     setDeviceConfig(parsed.devices);
