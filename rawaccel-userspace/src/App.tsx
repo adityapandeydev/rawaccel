@@ -1,6 +1,6 @@
 import { useDriverStatus } from "./hooks/useDriverStatus";
 import { useDevices } from "./hooks/useDevices";
-import { renameProfileState, deleteProfileState } from "./profileState";
+import { useProfileEditor } from "./hooks/useProfileEditor";
 import { createApplyGate } from "./applyGate";
 import { applyBlockReason } from "./driverStatus";
 import { DriverStatusIndicator } from "./components/DriverStatus";
@@ -10,7 +10,7 @@ import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { Moon, Sun, Monitor, Layers, Activity, Plus, Save, Download, Upload, Mouse, Menu, X, Settings, Maximize, Minimize, Check } from "lucide-react";
 import "./index.css";
-import { Profile, defaultProfile, AccelArgs, DeviceConfig, SettingsLoadReport, SettingsApplyReport, SETTINGS_SCHEMA_VERSION } from "./types";
+import { SettingsLoadReport, SettingsApplyReport } from "./types";
 import { validateSettings } from "./validation";
 import { NumberInput } from "./components/NumberInput";
 import { CurveGraph } from "./components/CurveGraph";
@@ -38,24 +38,20 @@ function App() {
   const driverStatus = useDriverStatus();
   const [runApply] = useState(createApplyGate);
   const [isApplying, setIsApplying] = useState(false);
-  const [profiles, setProfiles] = useState<Profile[]>([defaultProfile()]);
-  const [activeProfileIndex, setActiveProfileIndex] = useState(0);
-  const activeProfile = profiles[activeProfileIndex] || profiles[0];
-
   const { devices, loading: devicesLoading, error: devicesError, refresh: refreshDevices } = useDevices();
-  const [deviceConfig, setDeviceConfig] = useState<DeviceConfig[]>([]);
-  const [settingsMetadata, setSettingsMetadata] = useState<Record<string, unknown>>({ schema_version: SETTINGS_SCHEMA_VERSION });
-  
   const [activeTab, setActiveTab] = useState<"devices" | "mappings" | "profiles" | "settings">("profiles");
   const { theme, setTheme, language, setLanguage, showToastNotifications,
     setShowToastNotifications, showConfirmModals, setShowConfirmModals } = usePreferences();
-  const [activeCurveAxis, setActiveCurveAxis] = useState<"x" | "y">("x");
-  const linkXY = activeProfile.speed_processor_args.whole;
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [visibleGraphs, setVisibleGraphs] = useState<string[]>(["sensitivity"]);
   const [isExpanded, setIsExpanded] = useState(false);
   const [isProfilesExpanded, setIsProfilesExpanded] = useState(false);
   const { notification: modalState, notify: setModalState, dismiss: dismissNotification } = useNotifications();
+  const editor = useProfileEditor(setModalState);
+  const { profiles, setProfiles, activeProfileIndex, setActiveProfileIndex, activeProfile,
+    deviceConfig, setDeviceConfig, settingsMetadata, setSettingsMetadata, activeCurveAxis,
+    setActiveCurveAxis, linkXY, activeAccel, updateActiveProfile, updateProfile, renameProfile,
+    updateSpeed, updateAccel, updateLookup, handleLinkXY, handleSelectXAxis, handleSelectYAxis } = editor;
   
   const applyDisabledReason = applyBlockReason(driverStatus, profiles);
   const tieredPreview = !driverStatus.report?.tiered_apply_enabled && (activeProfile.accel_x.mode === "tiered" || activeProfile.accel_y.mode === "tiered");
@@ -160,89 +156,9 @@ function App() {
     initSettings();
   }, []);
 
-  // State Update Helpers
-  const updateActiveProfile = (updater: (p: Profile) => Profile) => {
-    setProfiles(prev => prev.map((p, i) => i === activeProfileIndex ? updater(p) : p));
-  };
-
-  const updateProfile = (key: keyof Profile, value: any) => {
-    updateActiveProfile(p => ({ ...p, [key]: value }));
-  };
-
-  const renameProfile = (newName: string) => {
-    try {
-      const next = renameProfileState(profiles, deviceConfig, activeProfileIndex, newName);
-      setProfiles(next.profiles);
-      setDeviceConfig(next.devices);
-    } catch (error) {
-      setModalState({ isOpen: true, title: "Profile Name Already Used", message: String(error) });
-    }
-  };
-
-  const updateSpeed = (key: string, value: number) => {
-    updateActiveProfile(p => ({ ...p, speed_processor_args: { ...p.speed_processor_args, [key]: value } }));
-  };
-
-  const updateAccel = (key: keyof AccelArgs, value: any) => {
-    updateActiveProfile(p => {
-      const next = { ...p };
-      if (linkXY) {
-        next.accel_x = { ...next.accel_x, [key]: value };
-        next.accel_y = { ...next.accel_y, [key]: value };
-      } else {
-        if (activeCurveAxis === "x") next.accel_x = { ...next.accel_x, [key]: value };
-        if (activeCurveAxis === "y") next.accel_y = { ...next.accel_y, [key]: value };
-      }
-      return next;
-    });
-  };
-
-  const updateLookup = (updater: (args: AccelArgs) => AccelArgs) => {
-    updateActiveProfile((profile) => {
-      if (linkXY) {
-        return {
-          ...profile,
-          accel_x: updater(profile.accel_x),
-          accel_y: updater(profile.accel_y),
-        };
-      }
-
-      return activeCurveAxis === "x"
-        ? { ...profile, accel_x: updater(profile.accel_x) }
-        : { ...profile, accel_y: updater(profile.accel_y) };
-    });
-  };
-
-  const activeAccel = activeCurveAxis === "x" ? activeProfile.accel_x : activeProfile.accel_y;
-
   const navigateTo = (tab: typeof activeTab) => {
     setActiveTab(tab);
     setIsSidebarOpen(false);
-  };
-
-  const handleLinkXY = () => {
-    setActiveCurveAxis("x");
-    updateActiveProfile(p => ({
-      ...p,
-      speed_processor_args: { ...p.speed_processor_args, whole: true },
-      accel_y: JSON.parse(JSON.stringify(p.accel_x))
-    }));
-  };
-
-  const handleSelectXAxis = () => {
-    setActiveCurveAxis("x");
-    updateActiveProfile(p => ({
-      ...p,
-      speed_processor_args: { ...p.speed_processor_args, whole: false }
-    }));
-  };
-
-  const handleSelectYAxis = () => {
-    setActiveCurveAxis("y");
-    updateActiveProfile(p => ({
-      ...p,
-      speed_processor_args: { ...p.speed_processor_args, whole: false }
-    }));
   };
 
   return (
@@ -300,23 +216,9 @@ function App() {
                 style={{ padding: "0.2rem", background: "transparent", border: "none", color: "inherit", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }} 
                 onClick={(e) => {
                   e.stopPropagation();
-                  if (profiles.length < 5) {
-                    const newProfile = defaultProfile();
-                    let nameIndex = profiles.length + 1;
-                    let candidateName = `Profile ${nameIndex}`;
-                    while (profiles.some(p => p.name.toLowerCase() === candidateName.toLowerCase())) {
-                      nameIndex++;
-                      candidateName = `Profile ${nameIndex}`;
-                    }
-                    newProfile.name = candidateName;
-                    const nextProfiles = [...profiles, newProfile];
-                    setProfiles(nextProfiles);
-                    setActiveProfileIndex(nextProfiles.length - 1);
-                    setActiveCurveAxis("x");
+                  if (editor.addProfile()) {
                     setIsProfilesExpanded(true);
                     setActiveTab("profiles");
-                  } else {
-                    setModalState({ isOpen: true, title: "Profile Limit Reached", message: "Maximum 5 profiles allowed." });
                   }
                 }}
                 title="Add New Profile"
@@ -331,8 +233,7 @@ function App() {
                   <div 
                     key={idx}
                     onClick={() => { 
-                      setActiveProfileIndex(idx); 
-                      setActiveCurveAxis("x");
+                      editor.selectProfile(idx);
                       navigateTo("profiles"); 
                     }}
                     style={{ 
@@ -354,11 +255,7 @@ function App() {
                       <div 
                         onClick={(e) => {
                           e.stopPropagation();
-                          const next = deleteProfileState(profiles, deviceConfig, activeProfileIndex, idx);
-                          setProfiles(next.profiles);
-                          setDeviceConfig(next.devices);
-                          setActiveProfileIndex(next.activeIndex);
-                          if (activeProfileIndex === idx) setActiveCurveAxis("x");
+                          editor.deleteProfile(idx);
                         }}
                         style={{ padding: "0.15rem", color: "var(--text-muted)", display: "flex", alignItems: "center", justifyContent: "center" }}
                         title="Delete Profile"
