@@ -1,4 +1,4 @@
-import { InputHTMLAttributes, useState, useEffect } from "react";
+import { InputHTMLAttributes, useState, useEffect, useId, useRef } from "react";
 
 interface NumberInputProps extends Omit<InputHTMLAttributes<HTMLInputElement>, 'onChange' | 'value'> {
   value: number;
@@ -6,6 +6,17 @@ interface NumberInputProps extends Omit<InputHTMLAttributes<HTMLInputElement>, '
 }
 
 export function NumberInput({ value = 0, onChange, ...props }: NumberInputProps) {
+  const id = useId();
+  const input = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    const field = input.current;
+    const group = field?.closest('.input-group');
+    const label = group?.querySelector('label');
+    if (field && label && !props['aria-label']) {
+      const fields = Array.from(group!.querySelectorAll('input'));
+      field.setAttribute('aria-label', `${label.textContent?.trim() ?? ''}${fields.length > 1 ? ` ${fields.indexOf(field) === 0 ? 'X' : 'Y'}` : ''}`);
+    }
+  });
   const [localValue, setLocalValue] = useState((value ?? 0).toString());
 
   useEffect(() => {
@@ -39,6 +50,8 @@ export function NumberInput({ value = 0, onChange, ...props }: NumberInputProps)
 
   return (
     <input 
+      id={props.id ?? id}
+      ref={input}
       type="number"
       value={localValue}
       onChange={handleChange}
