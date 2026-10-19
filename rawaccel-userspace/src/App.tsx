@@ -1183,6 +1183,7 @@ function App() {
             
             <div style={{ display: "flex", flexDirection: "column", height: "100%", overflow: "hidden", paddingTop: "0.25rem" }}>
               <CurveGraph 
+                whole={activeProfile.speed_processor_args.whole}
                 argsX={activeProfile.accel_x} 
                 argsY={activeProfile.accel_y} 
                 visibleGraphs={visibleGraphs} 

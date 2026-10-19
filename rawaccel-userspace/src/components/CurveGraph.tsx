@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { listen } from '@tauri-apps/api/event';
 import { AccelArgs } from '../types';
 import { generateGraphData, GraphPoint } from '../math';
+import { trackerInputs, type MouseSpeed } from '../tracker';
 import { Zap, Activity, TrendingUp } from 'lucide-react';
 
 interface CurveGraphProps {
@@ -10,32 +11,32 @@ interface CurveGraphProps {
   argsY: AccelArgs;
   visibleGraphs: string[];
   isExpanded: boolean;
+  whole: boolean;
   onUpdateLookupPoint?: (axis: "x" | "y", newTable: {x: number, y: number}[]) => void;
-}
-
-interface MouseSpeed {
-  speed_x: number;
-  speed_y: number;
-  speed_whole: number;
 }
 
 export function CurveGraph({ 
   argsX, 
   argsY, 
   visibleGraphs,
-  isExpanded,
+  isExpanded, whole,
   onUpdateLookupPoint
 }: CurveGraphProps) {
 
   const [mouseSpeed, setMouseSpeed] = useState<MouseSpeed>({ speed_x: 0, speed_y: 0, speed_whole: 0 });
   const [dragging, setDragging] = useState<{ axis: "x"|"y", index: number } | null>(null);
+  const [trackerUnavailable, setTrackerUnavailable] = useState(false);
 
   useEffect(() => {
+    let active = true;
     const unlisten = listen<MouseSpeed>('mouse-speed', (event) => {
-      setMouseSpeed(event.payload);
+      if (active) setMouseSpeed(event.payload);
+    }).catch(() => {
+      if (active) setTrackerUnavailable(true);
     });
     return () => {
-      unlisten.then(f => f());
+      active = false;
+      void unlisten.then(stop => stop?.()).catch(() => { /* Native event bridge may already be closed. */ });
     };
   }, []);
 
@@ -310,7 +311,7 @@ export function CurveGraph({
               {(() => {
                 // Determine which Y value maps to a given X speed on a specific dataset
                 const getMappedY = (data: GraphPoint[], key: keyof GraphPoint, speed: number) => {
-                  if (data.length === 0 || speed <= 0) return data.length > 0 ? data[0][key] as number : 1;
+                  if (data.length === 0 || speed <= data[0].x) return data.length > 0 ? data[0][key] as number : 1;
                   // Find the two points the speed falls between
                   for (let i = 0; i < data.length - 1; i++) {
                     if (speed >= data[i].x && speed <= data[i + 1].x) {
@@ -322,7 +323,7 @@ export function CurveGraph({
                   return data[data.length - 1][key] as number; // Fallback to last
                 };
 
-                const renderDot = (speed: number, data: GraphPoint[]) => {
+                const renderDot = (axis: 'x' | 'y', speed: number, data: GraphPoint[]) => {
                   const yVal = getMappedY(data, dataKey, speed);
                   const px = (Math.min(speed, maxSpeed) / maxSpeed) * 100;
                   const range = maxY - minY;
@@ -331,6 +332,8 @@ export function CurveGraph({
                   
                   return (
                     <circle 
+                      key={axis}
+                      aria-label={`${whole ? 'Combined' : axis.toUpperCase()} preview tracker`}
                       cx={`${px}%`} 
                       cy={`${py}%`} 
                       r="4.5" 
@@ -347,14 +350,8 @@ export function CurveGraph({
                     animate={{ opacity: 1 }}
                     transition={{ type: "tween", ease: "linear", duration: 0.016 }}
                   >
-                    {isSame ? (
-                      renderDot(mouseSpeed.speed_whole, dataX)
-                    ) : (
-                      <>
-                        {renderDot(mouseSpeed.speed_x, dataX)}
-                        {renderDot(mouseSpeed.speed_y, dataY)}
-                      </>
-                    )}
+                    {!trackerUnavailable && trackerInputs(whole, mouseSpeed).map(input =>
+                      renderDot(input.axis, input.speed, input.axis === 'x' ? dataX : dataY))}
                   </motion.g>
                 );
               })()}
@@ -377,6 +374,9 @@ export function CurveGraph({
 
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100%", width: "100%", position: "relative" }}>
+      <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)', margin: '0 0 0.5rem' }} title="Sum of relative packet distances over approximately 16 ms windows, across all mice. Combined uses Euclidean distance; components use absolute axis distances. No device DPI, profile weighting, rotation, snapping, clamps or smoothing is applied. Raw Input is not established as pre-filter input; dots are theoretical curve projections, not measured kernel output.">
+        {trackerUnavailable ? 'Tracker unavailable. ' : 'Tracker: aggregate Raw Input estimate. '}Unscaled counts; device/profile transforms excluded. Dots are theoretical previews.
+      </p>
       <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "0.5rem", overflowY: "auto", minHeight: 0 }} className="custom-scrollbar">
         <AnimatePresence mode="popLayout">
           {visibleGraphs.includes("sensitivity") && renderGraph("Sensitivity", <Zap size={15} color="var(--color-sensitivity)" />, "sensitivity", "Ratio of Output to Input", "var(--color-sensitivity)", true)}

@@ -23,9 +23,43 @@ pub struct MouseSpeed {
 struct MouseState {
     dx: f64,
     dy: f64,
+    distance: f64,
 }
 
-static MOUSE_STATE: Mutex<MouseState> = Mutex::new(MouseState { dx: 0.0, dy: 0.0 });
+impl MouseState {
+    fn record(&mut self, x: i32, y: i32) {
+        let x = x as f64;
+        let y = y as f64;
+        self.dx += x.abs();
+        self.dy += y.abs();
+        self.distance += x.hypot(y);
+    }
+
+    fn take(&mut self, milliseconds: f64) -> MouseSpeed {
+        let divisor = if milliseconds.is_finite() && milliseconds > 0.0 {
+            milliseconds
+        } else {
+            f64::INFINITY
+        };
+        let result = MouseSpeed {
+            speed_x: self.dx / divisor,
+            speed_y: self.dy / divisor,
+            speed_whole: self.distance / divisor,
+        };
+        self.dx = 0.0;
+        self.dy = 0.0;
+        self.distance = 0.0;
+        result
+    }
+}
+
+// Distance traveled across all relative mouse packets, not net displacement.
+// WM_INPUT does not establish whether counts are before or after the filter.
+static MOUSE_STATE: Mutex<MouseState> = Mutex::new(MouseState {
+    dx: 0.0,
+    dy: 0.0,
+    distance: 0.0,
+});
 
 unsafe extern "system" fn window_proc(
     hwnd: HWND,
@@ -37,8 +71,7 @@ unsafe extern "system" fn window_proc(
     if msg == WM_INPUT {
         if let Some((x, y)) = read_mouse(HRAWINPUT(lparam.0 as _)) {
             if let Ok(mut state) = MOUSE_STATE.lock() {
-                state.dx += x as f64;
-                state.dy += y as f64;
+                state.record(x, y);
             }
         }
     }
@@ -149,30 +182,65 @@ pub fn start(app_handle: AppHandle) {
             let dt = now.duration_since(last_emit).as_secs_f64() * 1000.0; // in ms
 
             if dt >= 16.0 {
-                let (dx, dy) = if let Ok(mut state) = MOUSE_STATE.lock() {
-                    let x = state.dx;
-                    let y = state.dy;
-                    state.dx = 0.0;
-                    state.dy = 0.0;
-                    (x, y)
+                let speed = if let Ok(mut state) = MOUSE_STATE.lock() {
+                    state.take(dt)
                 } else {
-                    (0.0, 0.0)
+                    MouseSpeed {
+                        speed_x: 0.0,
+                        speed_y: 0.0,
+                        speed_whole: 0.0,
+                    }
                 };
                 last_emit = now;
 
-                let speed_x = (dx.abs() / dt).max(0.0);
-                let speed_y = (dy.abs() / dt).max(0.0);
-                let speed_whole = ((dx * dx + dy * dy).sqrt() / dt).max(0.0);
-
-                let _ = app_handle.emit(
-                    "mouse-speed",
-                    MouseSpeed {
-                        speed_x,
-                        speed_y,
-                        speed_whole,
-                    },
-                );
+                let _ = app_handle.emit("mouse-speed", speed);
             }
         }
     });
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    fn empty() -> MouseState {
+        MouseState {
+            dx: 0.0,
+            dy: 0.0,
+            distance: 0.0,
+        }
+    }
+
+    #[test]
+    fn reversals_preserve_path_distance_and_window_resets() {
+        let mut state = empty();
+        state.record(3, 4);
+        state.record(-3, -4);
+        let speed = state.take(2.0);
+        assert_eq!(
+            (speed.speed_x, speed.speed_y, speed.speed_whole),
+            (3.0, 4.0, 5.0)
+        );
+        assert_eq!(state.take(16.0).speed_whole, 0.0);
+    }
+
+    #[test]
+    fn orthogonal_packets_sum_lengths_instead_of_combining_displacements() {
+        let mut state = empty();
+        state.record(3, 0);
+        state.record(0, 4);
+        assert_eq!(state.take(1.0).speed_whole, 7.0);
+    }
+
+    #[test]
+    fn invalid_windows_and_extreme_relative_counts_remain_finite() {
+        for duration in [0.0, -1.0, f64::NAN, f64::INFINITY] {
+            let mut state = empty();
+            state.record(i32::MIN, i32::MAX);
+            assert_eq!(state.take(duration).speed_whole, 0.0);
+            assert_eq!(state.take(16.0).speed_x, 0.0);
+        }
+        let mut state = empty();
+        state.record(i32::MIN, i32::MAX);
+        assert!(state.take(0.125).speed_whole.is_finite());
+    }
 }
