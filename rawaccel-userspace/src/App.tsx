@@ -1,6 +1,7 @@
 import { useDriverStatus } from "./hooks/useDriverStatus";
 import { useDevices } from "./hooks/useDevices";
 import { renameProfileState, deleteProfileState } from "./profileState";
+import { createApplyGate } from "./applyGate";
 import { applyBlockReason } from "./driverStatus";
 import { DriverStatusIndicator } from "./components/DriverStatus";
 import { useState, useEffect } from "react";
@@ -33,6 +34,8 @@ const copyLookupTable = (table: { x: number; y: number }[]) =>
 
 function App() {
   const driverStatus = useDriverStatus();
+  const [runApply] = useState(createApplyGate);
+  const [isApplying, setIsApplying] = useState(false);
   const [profiles, setProfiles] = useState<Profile[]>([defaultProfile()]);
   const [activeProfileIndex, setActiveProfileIndex] = useState(0);
   const activeProfile = profiles[activeProfileIndex] || profiles[0];
@@ -57,8 +60,6 @@ function App() {
   const applyDisabledReason = applyBlockReason(driverStatus, profiles);
   const tieredPreview = !driverStatus.report?.tiered_apply_enabled && (activeProfile.accel_x.mode === "tiered" || activeProfile.accel_y.mode === "tiered");
 
-  const mappedDevicesCount = deviceConfig.filter(d => !d.disable && d.profile_id).length;
-
   const toggleGraph = (graph: string) => {
     if (visibleGraphs.includes(graph)) {
       if (visibleGraphs.length > 1) {
@@ -77,14 +78,16 @@ function App() {
     }
   }, [theme]);
 
-  async function applySettings(overrideConfig?: DeviceConfig[]): Promise<boolean> {
+  async function applySettings(): Promise<boolean> {
+    return runApply(async () => {
+    setIsApplying(true);
     try {
       const block = applyBlockReason(driverStatus, profiles);
       if (block) {
         setModalState({ isOpen: true, title: "Settings Were Not Applied", message: block });
         throw new Error(block);
       }
-      const configToUse = overrideConfig || deviceConfig;
+      const configToUse = deviceConfig;
       const validationError = validateSettings(profiles, configToUse, settingsMetadata.default_device_config);
       if (validationError) {
         setModalState({ isOpen: true, title: "Invalid Input", message: validationError });
@@ -122,9 +125,11 @@ function App() {
         throw error;
       }
     } finally {
+      setIsApplying(false);
       // Status failures never turn a successful Apply/Save into a failed operation.
       void driverStatus.afterApply();
     }
+    });
   }
 
   // Load settings on startup
@@ -531,26 +536,15 @@ function App() {
 
             {activeTab === "profiles" ? (
               <AnimatedButton
-                disabled={applyDisabledReason !== null}
+                disabled={isApplying || applyDisabledReason !== null}
                 title={applyDisabledReason ?? "Apply settings to the driver"}
-                onClick={async () => {
-                  if (profiles.length === 1 && mappedDevicesCount <= 1 && deviceConfig.length > 0) {
-                    const targetDeviceIndex = deviceConfig.findIndex(d => !d.disable && d.profile_id);
-                    const applyIndex = targetDeviceIndex !== -1 ? targetDeviceIndex : 0;
-                    const newConfig = [...deviceConfig];
-                    newConfig[applyIndex] = { ...newConfig[applyIndex], profile_id: activeProfile.name };
-                    setDeviceConfig(newConfig);
-                    return await applySettings(newConfig);
-                  } else {
-                    return await applySettings();
-                  }
-                }}
+                onClick={applySettings}
                 defaultText={<><Save size={16} /> {profiles.length > 1 ? "Save All to Driver" : "Apply Settings"}</>}
                 successText={<><Check size={16} /> {profiles.length > 1 ? "Saved!" : "Applied!"}</>}
               />
             ) : (
               activeTab !== "settings" && <AnimatedButton 
-                disabled={applyDisabledReason !== null}
+                disabled={isApplying || applyDisabledReason !== null}
                 title={applyDisabledReason ?? "Apply settings to the driver"}
                 onClick={async () => await applySettings()} 
                 defaultText={<><Save size={16} /> Apply Settings</>} 
