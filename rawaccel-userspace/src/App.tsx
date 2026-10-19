@@ -1,11 +1,12 @@
 import { useDriverStatus } from "./hooks/useDriverStatus";
+import { useDevices } from "./hooks/useDevices";
 import { applyBlockReason } from "./driverStatus";
 import { DriverStatusIndicator } from "./components/DriverStatus";
 import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { Moon, Sun, Monitor, Layers, Activity, Plus, Save, Download, Upload, Mouse, Menu, X, Settings, Maximize, Minimize, Check } from "lucide-react";
 import "./index.css";
-import { Profile, defaultProfile, AccelArgs, Device, DeviceConfig, SettingsLoadReport, SettingsApplyReport, SETTINGS_SCHEMA_VERSION } from "./types";
+import { Profile, defaultProfile, AccelArgs, DeviceConfig, SettingsLoadReport, SettingsApplyReport, SETTINGS_SCHEMA_VERSION } from "./types";
 import { validateSettings } from "./validation";
 import { NumberInput } from "./components/NumberInput";
 import { CurveGraph } from "./components/CurveGraph";
@@ -35,7 +36,7 @@ function App() {
   const [activeProfileIndex, setActiveProfileIndex] = useState(0);
   const activeProfile = profiles[activeProfileIndex] || profiles[0];
 
-  const [devices, setDevices] = useState<Device[]>([]);
+  const { devices, loading: devicesLoading, error: devicesError, refresh: refreshDevices } = useDevices();
   const [deviceConfig, setDeviceConfig] = useState<DeviceConfig[]>([]);
   const [settingsMetadata, setSettingsMetadata] = useState<Record<string, unknown>>({ schema_version: SETTINGS_SCHEMA_VERSION });
   
@@ -129,10 +130,6 @@ function App() {
   useEffect(() => {
     async function initSettings() {
       try {
-        const sysDevices: Device[] = await invoke('get_devices');
-        setDevices(sysDevices);
-        console.log("Detected devices:", sysDevices);
-
         const result = await invoke<SettingsLoadReport>('load_settings');
         const parsed = JSON.parse(result.settings_json);
         const metadata = { ...parsed };
@@ -156,21 +153,6 @@ function App() {
         }
         if (parsed && parsed.devices) {
             setDeviceConfig(parsed.devices);
-        } else {
-            // Auto map first device to default profile if none configured
-            if (sysDevices.length > 0) {
-                setDeviceConfig([{ 
-                  id: sysDevices[0].id, 
-                  profile_id: defaultProfile().name,
-                  disable: false,
-                  set_extra_info: false,
-                  poll_time_lock: false,
-                  dpi: 0,
-                  polling_rate: 0,
-                  clamp_min: 0,
-                  clamp_max: 0
-                }]);
-            }
         }
       } catch (error) {
         console.error("Failed to load settings or devices on startup:", error);
@@ -1237,7 +1219,7 @@ function App() {
           </div>
         )}
         
-        {activeTab === "devices" && <DevicesView devices={devices} deviceConfig={deviceConfig} setDeviceConfig={setDeviceConfig} />}
+        {activeTab === "devices" && <DevicesView devices={devices} deviceConfig={deviceConfig} setDeviceConfig={setDeviceConfig} loading={devicesLoading} error={devicesError} onRefresh={refreshDevices} />}
         {activeTab === "mappings" && <MappingsView 
             devices={devices} 
             deviceConfig={deviceConfig} 

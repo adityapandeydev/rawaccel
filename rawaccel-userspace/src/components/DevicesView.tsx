@@ -1,48 +1,30 @@
 import { NumberInput } from "./NumberInput";
-import { useState } from "react";
+import { useState, type Dispatch, type SetStateAction } from "react";
+import { defaultDeviceConfig, patchDevice, resolveDeviceSelection } from "../deviceState";
 import { Device, DeviceConfig } from "../types";
 import { Monitor } from "lucide-react";
 
 export function DevicesView({ 
   devices,
   deviceConfig,
-  setDeviceConfig
+  setDeviceConfig, loading, error, onRefresh
 }: { 
   devices: Device[],
   deviceConfig: DeviceConfig[],
-  setDeviceConfig: (cfg: DeviceConfig[]) => void
+  setDeviceConfig: Dispatch<SetStateAction<DeviceConfig[]>>,
+  loading: boolean, error: string | null, onRefresh: () => Promise<void>
 }) {
-  const [selectedDeviceId, setSelectedDeviceId] = useState<string | null>(devices[0]?.id || null);
+  const [requestedDeviceId, setSelectedDeviceId] = useState<string | null>(null);
+  const selectedDeviceId = resolveDeviceSelection(requestedDeviceId, devices);
 
   const selectedDevice = devices.find(d => d.id === selectedDeviceId);
-  const selectedConfig = deviceConfig.find(c => c.id === selectedDeviceId);
+  const selectedConfig = deviceConfig.find(c => c.id === selectedDeviceId)
+    ?? (selectedDeviceId ? defaultDeviceConfig(selectedDeviceId) : undefined);
 
-  const updateConfig = (key: keyof DeviceConfig, value: any) => {
+  const updateConfig = <K extends keyof DeviceConfig>(key: K, value: DeviceConfig[K]) => {
     if (!selectedDeviceId) return;
     
-    let newConfig = [...deviceConfig];
-    const existingIdx = newConfig.findIndex(c => c.id === selectedDeviceId);
-    
-    if (existingIdx >= 0) {
-      newConfig[existingIdx] = { ...newConfig[existingIdx], [key]: value };
-    } else {
-      // If no config exists, we can't fully update it since we don't have defaults here easily,
-      // but App.tsx ensures the default is pushed if there are devices.
-      // For safety, push a minimal config
-      newConfig.push({
-        id: selectedDeviceId,
-        profile_id: null,
-        disable: false,
-        set_extra_info: false,
-        poll_time_lock: false,
-        dpi: 0,
-        polling_rate: 0,
-        clamp_min: 0,
-        clamp_max: 0,
-        [key]: value
-      });
-    }
-    setDeviceConfig(newConfig);
+    setDeviceConfig(previous => patchDevice(previous, selectedDeviceId, { [key]: value }));
   };
 
   return (
@@ -55,6 +37,9 @@ export function DevicesView({
             <div className="panel-header" style={{ marginBottom: "0.5rem" }}>
               System Devices
             </div>
+            <button className="btn" disabled={loading} onClick={() => void onRefresh()}>{loading ? "Refreshing…" : "Refresh Devices"}</button>
+            {error && <p role="alert">Could not refresh devices: {error}. Previous results are retained.</p>}
+            {!loading && devices.length === 0 && <p>No mouse devices detected. Connect a mouse and refresh.</p>}
           </div>
           
           <div style={{ flex: 1, padding: "0.5rem", overflowY: "auto" }}>
