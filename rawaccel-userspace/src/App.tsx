@@ -17,6 +17,7 @@ import { useSettingsTransfer } from './hooks/useSettingsTransfer';
 import { usePreferences } from './hooks/usePreferences';
 import { useNotifications } from './hooks/useNotifications';
 import { useNavigation } from './hooks/useNavigation';
+import { useWindowState } from './hooks/useWindowState';
 import { serializeSettingsDocument } from './settingsDocument';
 import { validateSettings } from './validation';
 import { defaultProfile } from './types';
@@ -28,6 +29,7 @@ type Page = 'profiles' | 'devices' | 'mappings' | 'settings';
 type Confirmation = { title: string; message: string; action: () => void; label: string };
 
 function App() {
+  useWindowState();
   const driverStatus = useDriverStatus();
   const { devices, loading, error, refresh } = useDevices();
   const preferences = usePreferences();
