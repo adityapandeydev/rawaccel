@@ -58,7 +58,8 @@ function App() {
       if (document.querySelector('.modal-overlay')) return;
       if (event.key === 'Escape') { event.preventDefault(); navigation.closeDrawer(); }
       if (event.key !== 'Tab') return;
-      const targets = Array.from(sidebar.current?.querySelectorAll<HTMLElement>('button:not(:disabled), input, select') ?? []);
+      const targets = Array.from(sidebar.current?.querySelectorAll<HTMLElement>('button, input, select') ?? [])
+        .filter(element => !element.hasAttribute('disabled') && element.getClientRects().length > 0);
       const index = targets.indexOf(document.activeElement as HTMLElement);
       event.preventDefault();
       targets[(index + (event.shiftKey ? -1 : 1) + targets.length) % targets.length]?.focus();
