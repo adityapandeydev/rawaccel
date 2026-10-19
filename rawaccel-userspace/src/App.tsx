@@ -4,6 +4,8 @@ import { renameProfileState, deleteProfileState } from "./profileState";
 import { createApplyGate } from "./applyGate";
 import { applyBlockReason } from "./driverStatus";
 import { DriverStatusIndicator } from "./components/DriverStatus";
+import { usePreferences } from "./hooks/usePreferences";
+import { useNotifications } from "./hooks/useNotifications";
 import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { Moon, Sun, Monitor, Layers, Activity, Plus, Save, Download, Upload, Mouse, Menu, X, Settings, Maximize, Minimize, Check } from "lucide-react";
@@ -45,17 +47,15 @@ function App() {
   const [settingsMetadata, setSettingsMetadata] = useState<Record<string, unknown>>({ schema_version: SETTINGS_SCHEMA_VERSION });
   
   const [activeTab, setActiveTab] = useState<"devices" | "mappings" | "profiles" | "settings">("profiles");
-  const [theme, setTheme] = useState<"dark" | "light" | "system">("dark");
-  const [language, setLanguage] = useState("en-US");
-  const [showToastNotifications, setShowToastNotifications] = useState(true);
-  const [showConfirmModals, setShowConfirmModals] = useState(true);
+  const { theme, setTheme, language, setLanguage, showToastNotifications,
+    setShowToastNotifications, showConfirmModals, setShowConfirmModals } = usePreferences();
   const [activeCurveAxis, setActiveCurveAxis] = useState<"x" | "y">("x");
   const linkXY = activeProfile.speed_processor_args.whole;
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [visibleGraphs, setVisibleGraphs] = useState<string[]>(["sensitivity"]);
   const [isExpanded, setIsExpanded] = useState(false);
   const [isProfilesExpanded, setIsProfilesExpanded] = useState(false);
-  const [modalState, setModalState] = useState({ isOpen: false, title: "", message: "" });
+  const { notification: modalState, notify: setModalState, dismiss: dismissNotification } = useNotifications();
   
   const applyDisabledReason = applyBlockReason(driverStatus, profiles);
   const tieredPreview = !driverStatus.report?.tiered_apply_enabled && (activeProfile.accel_x.mode === "tiered" || activeProfile.accel_y.mode === "tiered");
@@ -69,14 +69,6 @@ function App() {
       setVisibleGraphs([...visibleGraphs, graph]);
     }
   };
-
-  useEffect(() => {
-    if (theme === "light") {
-      document.body.setAttribute("data-theme", "light");
-    } else {
-      document.body.removeAttribute("data-theme");
-    }
-  }, [theme]);
 
   async function applySettings(): Promise<boolean> {
     return runApply(async () => {
@@ -1222,7 +1214,7 @@ function App() {
         isOpen={modalState.isOpen} 
         title={modalState.title} 
         message={modalState.message} 
-        onClose={() => setModalState({ ...modalState, isOpen: false })} 
+        onClose={dismissNotification}
       />
     </div>
   );
