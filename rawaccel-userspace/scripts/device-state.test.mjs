@@ -9,6 +9,8 @@ test('late devices, disconnect and reconnect resolve to a connected selection', 
   assert.equal(resolveDeviceSelection('b', [{ id: 'a' }, { id: 'b' }]), 'b');
   assert.equal(resolveDeviceSelection('b', [{ id: 'a' }]), 'a');
   assert.equal(resolveDeviceSelection('b', []), null);
+  const fallback = resolveDeviceSelection('a', [{ id: 'b' }]);
+  assert.equal(resolveDeviceSelection(fallback, [{ id: 'a' }, { id: 'b' }]), 'b');
 });
 
 test('first edit creates unassigned config; later edits retain mappings and disconnected entries', () => {

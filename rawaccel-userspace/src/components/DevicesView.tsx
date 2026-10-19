@@ -1,5 +1,5 @@
 import { NumberInput } from "./NumberInput";
-import { useState, type Dispatch, type SetStateAction } from "react";
+import { useEffect, useState, type Dispatch, type SetStateAction } from "react";
 import { defaultDeviceConfig, patchDevice, resolveDeviceSelection } from "../deviceState";
 import { Device, DeviceConfig } from "../types";
 import { Monitor } from "lucide-react";
@@ -16,6 +16,11 @@ export function DevicesView({
 }) {
   const [requestedDeviceId, setSelectedDeviceId] = useState<string | null>(null);
   const selectedDeviceId = resolveDeviceSelection(requestedDeviceId, devices);
+  useEffect(() => {
+    // Commit fallback selection so reordering/reconnecting devices cannot jump
+    // the editor back to a previously selected, disconnected mouse.
+    setSelectedDeviceId(current => resolveDeviceSelection(current, devices));
+  }, [devices]);
 
   const selectedDevice = devices.find(d => d.id === selectedDeviceId);
   const selectedConfig = deviceConfig.find(c => c.id === selectedDeviceId)
