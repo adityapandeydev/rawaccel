@@ -1,4 +1,6 @@
 import { Device, DeviceConfig } from "../types";
+import type { Dispatch, SetStateAction } from 'react';
+import { patchDevice } from '../deviceState';
 import { Monitor, Activity } from "lucide-react";
 import { CustomSelect } from "./CustomSelect";
 
@@ -10,28 +12,11 @@ export function MappingsView({
 }: { 
   devices: Device[], 
   deviceConfig: DeviceConfig[], 
-  setDeviceConfig: (cfg: DeviceConfig[]) => void,
+  setDeviceConfig: Dispatch<SetStateAction<DeviceConfig[]>>,
   profiles: string[]
 }) {
   const assignProfile = (deviceId: string, profileName: string | null) => {
-    let newConfig = [...deviceConfig];
-    const existingIdx = newConfig.findIndex(c => c.id === deviceId);
-    if (existingIdx >= 0) {
-      newConfig[existingIdx] = { ...newConfig[existingIdx], profile_id: profileName };
-    } else {
-      newConfig.push({ 
-        id: deviceId, 
-        profile_id: profileName,
-        disable: false,
-        set_extra_info: false,
-        poll_time_lock: false,
-        dpi: 0,
-        polling_rate: 0,
-        clamp_min: 0,
-        clamp_max: 0
-      });
-    }
-    setDeviceConfig(newConfig);
+    setDeviceConfig(previous => patchDevice(previous, deviceId, { profile_id: profileName }));
   };
 
   const profileOptions = [
