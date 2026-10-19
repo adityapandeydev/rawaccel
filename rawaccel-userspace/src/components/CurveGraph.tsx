@@ -1,9 +1,9 @@
-import React, { useMemo, useEffect, useState, useId } from 'react';
+import React, { useMemo, useState, useId } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { listen } from '@tauri-apps/api/event';
 import { AccelArgs } from '../types';
 import { generateGraphData, createEvaluator, GraphPoint } from '../math';
-import { trackerInputs, type MouseSpeed } from '../tracker';
+import { trackerInputs } from '../tracker';
+import { useMouseTelemetry } from './MouseTelemetry';
 import { Zap, Activity, TrendingUp } from 'lucide-react';
 
 interface CurveGraphProps {
@@ -24,22 +24,8 @@ export function CurveGraph({
 }: CurveGraphProps) {
 
   const plotId = useId();
-  const [mouseSpeed, setMouseSpeed] = useState<MouseSpeed>({ speed_x: 0, speed_y: 0, speed_whole: 0 });
+  const { mouseSpeed, trackerUnavailable } = useMouseTelemetry();
   const [dragging, setDragging] = useState<{ axis: "x"|"y", index: number } | null>(null);
-  const [trackerUnavailable, setTrackerUnavailable] = useState(false);
-
-  useEffect(() => {
-    let active = true;
-    const unlisten = listen<MouseSpeed>('mouse-speed', (event) => {
-      if (active) setMouseSpeed(event.payload);
-    }).catch(() => {
-      if (active) setTrackerUnavailable(true);
-    });
-    return () => {
-      active = false;
-      void unlisten.then(stop => stop?.()).catch(() => { /* Native event bridge may already be closed. */ });
-    };
-  }, []);
 
   const maxSpeed = useMemo(() => {
     let m = isExpanded ? 200 : 80;
@@ -406,10 +392,7 @@ export function CurveGraph({
           </div>
         </div>
       )}
-      <div className="live-input" title="Aggregate relative Raw Input estimate across all mice, over roughly 16 ms windows. Unscaled counts; DPI, profile weighting, geometry, clamps and smoothing are excluded. Dots are theoretical curve projections, not measured kernel output.">
-        <span>Live input</span><strong>{trackerUnavailable ? '—' : whole ? mouseSpeed.speed_whole.toFixed(1) : `X ${mouseSpeed.speed_x.toFixed(1)} / Y ${mouseSpeed.speed_y.toFixed(1)}`}</strong><span className="live-unit">counts/ms</span>
-        <span className="live-caption">{trackerUnavailable ? 'Tracker unavailable' : 'Aggregate Raw Input · theoretical preview'}</span>
-      </div>
+
     </div>
   );
 }

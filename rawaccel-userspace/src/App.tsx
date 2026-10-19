@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
-import { FolderOpen, Layers, Plus, Mouse, Menu, X, Settings, Moon, Check, ChevronDown, Undo2, RotateCcw } from 'lucide-react';
+import { FolderOpen, Layers, Plus, Mouse, Menu, X, Settings, Moon, Sun, Check, ChevronDown, Undo2, RotateCcw } from 'lucide-react';
 import { ProfileWorkspace } from './components/ProfileWorkspace';
 import { DevicesView } from './components/DevicesView';
 import { MappingsView } from './components/MappingsView';
 import { SettingsView } from './components/SettingsView';
 import { SettingsTransfer } from './components/SettingsTransfer';
 import { DriverStatusIndicator } from './components/DriverStatus';
+import { LiveInput } from './components/MouseTelemetry';
 import { CustomModal } from './components/CustomModal';
 import { AnimatedButton } from './components/AnimatedButton';
 import { useApplySettings } from './hooks/useApplySettings';
@@ -106,9 +107,11 @@ function App() {
         </div>}
         <div className="configuration-import"><SettingsTransfer {...transfer} variant="import" /></div>
       </nav>
-      <div className="sidebar-footer"><Moon size={20} /><span>{preferences.resolvedTheme === 'dark' ? 'Dark theme' : 'Light theme'}</span>
-        <button className="theme-switch" role="switch" aria-label="Dark theme" aria-checked={preferences.resolvedTheme === 'dark'}
-          onClick={() => preferences.setTheme(preferences.resolvedTheme === 'dark' ? 'light' : 'dark')}><span /></button></div>
+      <div className="sidebar-footer"><DriverStatusIndicator snapshot={driverStatus} onRefresh={driverStatus.refresh} />
+        <button className="btn icon-button theme-button" aria-label={`Switch to ${preferences.resolvedTheme === 'dark' ? 'light' : 'dark'} theme`}
+          title={`Switch to ${preferences.resolvedTheme === 'dark' ? 'light' : 'dark'} theme`}
+          onClick={() => preferences.setTheme(preferences.resolvedTheme === 'dark' ? 'light' : 'dark')}>
+          {preferences.resolvedTheme === 'dark' ? <Sun size={19} /> : <Moon size={19} />}</button></div>
     </aside>}
     <main className="main-content" inert={!navigation.wide && navigation.open ? true : undefined}>
       <header className="workspace-header">
@@ -120,7 +123,7 @@ function App() {
               : {devices: 'Configure your mouse hardware', mappings: 'Connect your profiles to your devices', settings: 'Appearance, preferences & application information'}[page]}
               {page === 'profiles' && tieredPreview && <span className="preview-badge" role="note" title="Applying Tiered requires a compatible signed driver.">Preview only</span>}</p></div>
         </div>
-        <div className="header-actions"><DriverStatusIndicator snapshot={driverStatus} onRefresh={driverStatus.refresh} /></div>
+        <div className="header-actions"><LiveInput whole={editor.linkXY} /></div>
       </header>
       {page !== 'settings' && validationError && <div className="inline-notice" role="alert">{validationError}</div>}
       {page === 'profiles' && <ProfileWorkspace editor={editor} visibleGraphs={graphs} isExpanded={expanded} notify={notify}
