@@ -105,25 +105,24 @@ export function useProfileEditor(setModalState: Notify) {
     }));
   };
 
-
   const addProfile = () => {
-  if (profiles.length < 5) {
-    const newProfile = defaultProfile();
-    let nameIndex = profiles.length + 1;
-    let candidateName = `Profile ${nameIndex}`;
-    while (profiles.some(p => p.name.toLowerCase() === candidateName.toLowerCase())) {
-      nameIndex++;
-      candidateName = `Profile ${nameIndex}`;
+    if (profiles.length < 5) {
+      const newProfile = defaultProfile();
+      let nameIndex = profiles.length + 1;
+      let candidateName = `Profile ${nameIndex}`;
+      while (profiles.some(p => p.name.toLowerCase() === candidateName.toLowerCase())) {
+        nameIndex++;
+        candidateName = `Profile ${nameIndex}`;
+      }
+      newProfile.name = candidateName;
+      const nextProfiles = [...profiles, newProfile];
+      setProfiles(nextProfiles);
+      setActiveProfileIndex(nextProfiles.length - 1);
+      setActiveCurveAxis("x");
+      return true;
+    } else {
+      setModalState({ isOpen: true, title: "Profile Limit Reached", message: "Maximum 5 profiles allowed." });
     }
-    newProfile.name = candidateName;
-    const nextProfiles = [...profiles, newProfile];
-    setProfiles(nextProfiles);
-    setActiveProfileIndex(nextProfiles.length - 1);
-    setActiveCurveAxis("x");
-    return true;
-  } else {
-    setModalState({ isOpen: true, title: "Profile Limit Reached", message: "Maximum 5 profiles allowed." });
-  }
     return false;
   };
   const selectProfile = (index: number) => {
