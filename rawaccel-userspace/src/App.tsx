@@ -1,20 +1,15 @@
+import { useApplySettings } from "./hooks/useApplySettings";
 import { useDriverStatus } from "./hooks/useDriverStatus";
 import { useDevices } from "./hooks/useDevices";
 import { useProfileEditor } from "./hooks/useProfileEditor";
 import { useSettingsTransfer } from "./hooks/useSettingsTransfer";
 import { SettingsTransfer } from "./components/SettingsTransfer";
-import { serializeSettingsDocument } from "./settingsDocument";
-import { createApplyGate } from "./applyGate";
-import { applyBlockReason } from "./driverStatus";
 import { DriverStatusIndicator } from "./components/DriverStatus";
 import { usePreferences } from "./hooks/usePreferences";
 import { useNotifications } from "./hooks/useNotifications";
 import { useState } from "react";
-import { invoke } from "@tauri-apps/api/core";
 import { Moon, Sun, Monitor, Layers, Activity, Plus, Save, Mouse, Menu, X, Settings, Maximize, Minimize, Check } from "lucide-react";
 import "./index.css";
-import { SettingsApplyReport } from "./types";
-import { validateSettings } from "./validation";
 import { NumberInput } from "./components/NumberInput";
 import { CurveGraph } from "./components/CurveGraph";
 import { CustomSelect } from "./components/CustomSelect";
@@ -39,8 +34,6 @@ const copyLookupTable = (table: { x: number; y: number }[]) =>
 
 function App() {
   const driverStatus = useDriverStatus();
-  const [runApply] = useState(createApplyGate);
-  const [isApplying, setIsApplying] = useState(false);
   const { devices, loading: devicesLoading, error: devicesError, refresh: refreshDevices } = useDevices();
   const [activeTab, setActiveTab] = useState<"devices" | "mappings" | "profiles" | "settings">("profiles");
   const { theme, setTheme, language, setLanguage, showToastNotifications,
@@ -52,12 +45,12 @@ function App() {
   const { notification: modalState, notify: setModalState, dismiss: dismissNotification } = useNotifications();
   const editor = useProfileEditor(setModalState);
   const { profiles, activeProfileIndex, activeProfile,
-    deviceConfig, setDeviceConfig, settingsMetadata, activeCurveAxis,
+    deviceConfig, setDeviceConfig, activeCurveAxis,
     linkXY, activeAccel, updateActiveProfile, updateProfile, renameProfile,
     updateSpeed, updateAccel, updateLookup, handleLinkXY, handleSelectXAxis, handleSelectYAxis } = editor;
   const transfer = useSettingsTransfer(editor, setModalState);
   
-  const applyDisabledReason = applyBlockReason(driverStatus, profiles);
+  const { isApplying, applyDisabledReason, applySettings } = useApplySettings(editor, driverStatus, setModalState);
   const tieredPreview = !driverStatus.report?.tiered_apply_enabled && (activeProfile.accel_x.mode === "tiered" || activeProfile.accel_y.mode === "tiered");
 
   const toggleGraph = (graph: string) => {
@@ -69,56 +62,6 @@ function App() {
       setVisibleGraphs([...visibleGraphs, graph]);
     }
   };
-
-  async function applySettings(): Promise<boolean> {
-    return runApply(async () => {
-    setIsApplying(true);
-    try {
-      const block = applyBlockReason(driverStatus, profiles);
-      if (block) {
-        setModalState({ isOpen: true, title: "Settings Were Not Applied", message: block });
-        throw new Error(block);
-      }
-      const configToUse = deviceConfig;
-      const validationError = validateSettings(profiles, configToUse, settingsMetadata.default_device_config);
-      if (validationError) {
-        setModalState({ isOpen: true, title: "Invalid Input", message: validationError });
-        throw new Error(validationError);
-      }
-
-      try {
-        console.log("Applying Settings...", profiles);
-        const profileJson = serializeSettingsDocument(settingsMetadata, profiles, configToUse);
-        const result = await invoke<SettingsApplyReport>('apply_settings', { settingsJson: profileJson });
-        if (!result.saved) {
-          setModalState({
-            isOpen: true,
-            title: "Applied, But Not Saved",
-            message: `Your settings are active in the driver, but could not be saved. They may be lost after restarting.\n${result.save_error ?? "No settings location could be updated."}`,
-          });
-          return false;
-        }
-        if (result.warnings.length > 0) {
-          setModalState({
-            isOpen: true,
-            title: "Applied and Saved With Warnings",
-            message: `Your settings are active and were saved to:\n${result.saved_paths.join("\n")}\nSome locations could not be updated:\n${result.warnings.join("\n")}`,
-          });
-        }
-        console.log("Settings applied and saved successfully.");
-        return true;
-      } catch (error) {
-        console.error("Failed to apply settings:", error);
-        setModalState({ isOpen: true, title: "Settings Were Not Applied", message: String(error) });
-        throw error;
-      }
-    } finally {
-      setIsApplying(false);
-      // Status failures never turn a successful Apply/Save into a failed operation.
-      void driverStatus.afterApply();
-    }
-    });
-  }
 
   const navigateTo = (tab: typeof activeTab) => {
     setActiveTab(tab);
