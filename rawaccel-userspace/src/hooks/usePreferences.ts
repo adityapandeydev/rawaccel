@@ -1,15 +1,25 @@
 import { useEffect, useState } from 'react';
+import palette from '../palette.json';
+import { parseTheme, resolveTheme, THEME_KEY, type ThemePreference } from '../theme';
 
-// Preference behavior is intentionally unchanged here. Persistence and system
-// theme support belong to the later product/design phases.
 export function usePreferences() {
-  const [theme, setTheme] = useState<'dark' | 'light' | 'system'>('dark');
+  const [theme, setTheme] = useState<ThemePreference>(() => {
+    try { return parseTheme(localStorage.getItem(THEME_KEY)); } catch { return 'system'; }
+  });
   const [language, setLanguage] = useState('en-US');
   const [showToastNotifications, setShowToastNotifications] = useState(true);
   const [showConfirmModals, setShowConfirmModals] = useState(true);
   useEffect(() => {
-    if (theme === 'light') document.body.setAttribute('data-theme', 'light');
-    else document.body.removeAttribute('data-theme');
+    const media = window.matchMedia('(prefers-color-scheme: dark)');
+    const apply = () => {
+      const resolved = resolveTheme(theme, media.matches);
+      document.body.dataset.theme = resolved;
+      for (const [role, color] of Object.entries(palette[resolved])) document.body.style.setProperty(`--color-${role}`, color);
+    };
+    apply();
+    media.addEventListener('change', apply);
+    try { localStorage.setItem(THEME_KEY, theme); } catch { /* Session-only if storage is unavailable. */ }
+    return () => media.removeEventListener('change', apply);
   }, [theme]);
   return { theme, setTheme, language, setLanguage, showToastNotifications,
     setShowToastNotifications, showConfirmModals, setShowConfirmModals };

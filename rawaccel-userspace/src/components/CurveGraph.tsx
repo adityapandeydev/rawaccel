@@ -250,11 +250,11 @@ export function CurveGraph({
             {/* The Curve Layer (Scaled) */}
             <svg width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none" style={{ overflow: "visible", position: "absolute", top: 0, left: 0, pointerEvents: "none" }}>
               {/* The X Curve */}
-              <path d={pathX} fill="none" stroke={color} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
+              <path d={pathX} fill="none" stroke={isSame ? color : "var(--color-x)"} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
               
               {/* The Y Curve */}
               {!isSame && (
-                <path d={pathY} fill="none" stroke="var(--color-accent)" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" strokeDasharray="6 6" vectorEffect="non-scaling-stroke" />
+                <path d={pathY} fill="none" stroke="var(--color-y)" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" strokeDasharray="6 6" vectorEffect="non-scaling-stroke" />
               )}
             </svg>
             
@@ -276,7 +276,7 @@ export function CurveGraph({
                       <circle
                         key={`lut-x-${i}`}
                         cx={`${px}%`} cy={`${py}%`} r="6"
-                        fill="var(--color-primary)" stroke="#fff" strokeWidth="2"
+                        fill="var(--color-x)" stroke="#fff" strokeWidth="2"
                         style={{ cursor: "grab", pointerEvents: "auto" }}
                         onPointerDown={(e) => {
                           e.stopPropagation();
@@ -294,7 +294,7 @@ export function CurveGraph({
                       <circle
                         key={`lut-y-${i}`}
                         cx={`${px}%`} cy={`${py}%`} r="6"
-                        fill="var(--color-accent)" stroke="#fff" strokeWidth="2"
+                        fill="var(--color-y)" stroke="#fff" strokeWidth="2"
                         style={{ cursor: "grab", pointerEvents: "auto" }}
                         onPointerDown={(e) => {
                           e.stopPropagation();
@@ -337,8 +337,8 @@ export function CurveGraph({
                       cx={`${px}%`} 
                       cy={`${py}%`} 
                       r="4.5" 
-                      fill="#FFFFFF" 
-                      stroke="#000000"
+                      fill={whole ? color : `var(--color-${axis})`}
+                      stroke="var(--bg-panel)"
                       strokeWidth="2"
                     />
                   );
@@ -380,8 +380,8 @@ export function CurveGraph({
       <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "0.5rem", overflowY: "auto", minHeight: 0 }} className="custom-scrollbar">
         <AnimatePresence mode="popLayout">
           {visibleGraphs.includes("sensitivity") && renderGraph("Sensitivity", <Zap size={15} color="var(--color-sensitivity)" />, "sensitivity", "Ratio of Output to Input", "var(--color-sensitivity)", true)}
-          {visibleGraphs.includes("velocity") && renderGraph("Velocity", <Activity size={15} color="#10b981" />, "velocity", "Output Velocity (counts/ms)", "#10b981")}
-          {visibleGraphs.includes("gain") && renderGraph("Gain", <TrendingUp size={15} color="#f59e0b" />, "gain", "Slope of Velocity", "#f59e0b")}
+          {visibleGraphs.includes("velocity") && renderGraph("Velocity", <Activity size={15} color="var(--color-velocity)" />, "velocity", "Output Velocity (counts/ms)", "var(--color-velocity)")}
+          {visibleGraphs.includes("gain") && renderGraph("Gain", <TrendingUp size={15} color="var(--color-gain)" />, "gain", "Slope of Velocity", "var(--color-gain)")}
         </AnimatePresence>
       </div>
 
@@ -389,10 +389,10 @@ export function CurveGraph({
       {!isSame && (
         <div style={{ display: "flex", justifyContent: "center", gap: "1.5rem", marginTop: "1rem", fontSize: "0.75rem", color: "var(--text-muted)" }}>
           <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-            <div style={{ width: "16px", height: "3px", backgroundColor: "var(--color-primary)" }} /> X Axis
+            <div style={{ width: "16px", height: "3px", backgroundColor: "var(--color-x)" }} /> X Axis
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-            <div style={{ width: "16px", height: "3px", backgroundColor: "var(--color-accent)", borderBottom: "2px dashed var(--bg-app)" }} /> Y Axis
+            <div style={{ width: "16px", height: "3px", backgroundColor: "var(--color-y)", borderBottom: "2px dashed var(--bg-app)" }} /> Y Axis
           </div>
         </div>
       )}

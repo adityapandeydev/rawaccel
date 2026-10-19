@@ -1,0 +1,4 @@
+{
+  "dark": {"sensitivity":"#43cbbd","velocity":"#8cbdff","gain":"#efbc63","x":"#c4a0ff","y":"#f58cad"},
+  "light": {"sensitivity":"#08766c","velocity":"#275eaf","gain":"#925900","x":"#7547b8","y":"#b53165"}
+}
