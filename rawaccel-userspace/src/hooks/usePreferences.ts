@@ -6,6 +6,7 @@ export function usePreferences() {
   const [theme, setTheme] = useState<ThemePreference>(() => {
     try { return parseTheme(localStorage.getItem(THEME_KEY)); } catch { return 'system'; }
   });
+  const [resolvedTheme, setResolvedTheme] = useState<'dark' | 'light'>(() => resolveTheme(theme, window.matchMedia('(prefers-color-scheme: dark)').matches));
   const [language, setLanguage] = useState('en-US');
   const [showToastNotifications, setShowToastNotifications] = useState(true);
   const [showConfirmModals, setShowConfirmModals] = useState(true);
@@ -14,6 +15,7 @@ export function usePreferences() {
     const apply = () => {
       const resolved = resolveTheme(theme, media.matches);
       document.body.dataset.theme = resolved;
+      setResolvedTheme(resolved);
       for (const [role, color] of Object.entries(palette[resolved])) document.body.style.setProperty(`--color-${role}`, color);
     };
     apply();
@@ -21,6 +23,6 @@ export function usePreferences() {
     try { localStorage.setItem(THEME_KEY, theme); } catch { /* Session-only if storage is unavailable. */ }
     return () => media.removeEventListener('change', apply);
   }, [theme]);
-  return { theme, setTheme, language, setLanguage, showToastNotifications,
+  return { theme, setTheme, resolvedTheme, language, setLanguage, showToastNotifications,
     setShowToastNotifications, showConfirmModals, setShowConfirmModals };
 }

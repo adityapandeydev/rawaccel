@@ -2,10 +2,17 @@ import { InputHTMLAttributes, useState, useEffect, useId, useRef } from "react";
 
 interface NumberInputProps extends Omit<InputHTMLAttributes<HTMLInputElement>, 'onChange' | 'value'> {
   value: number;
+  precision?: number;
   onChange: (e: { target: { value: string } }) => void;
 }
 
-export function NumberInput({ value = 0, onChange, ...props }: NumberInputProps) {
+export function NumberInput({ value = 0, onChange, precision, ...props }: NumberInputProps) {
+  const format = (number: number) => {
+    if (precision === undefined) return number.toString();
+    const padded = number.toFixed(precision);
+    // Pad simple stage values without hiding precision in imported/user values.
+    return Number(padded) === number ? padded : number.toString();
+  };
   const id = useId();
   const input = useRef<HTMLInputElement>(null);
   useEffect(() => {
@@ -17,7 +24,7 @@ export function NumberInput({ value = 0, onChange, ...props }: NumberInputProps)
       field.setAttribute('aria-label', `${label.textContent?.trim() ?? ''}${fields.length > 1 ? ` ${fields.indexOf(field) === 0 ? 'X' : 'Y'}` : ''}`);
     }
   });
-  const [localValue, setLocalValue] = useState((value ?? 0).toString());
+  const [localValue, setLocalValue] = useState(() => format(value ?? 0));
 
   useEffect(() => {
     const parsedLocal = parseFloat(localValue);
@@ -30,7 +37,7 @@ export function NumberInput({ value = 0, onChange, ...props }: NumberInputProps)
       (isLocalNaN && value !== 0) ||
       (localValue === "" && value !== 0)
     ) {
-      setLocalValue(value.toString());
+      setLocalValue(format(value));
     }
   }, [value, localValue]);
 
@@ -65,7 +72,7 @@ export function NumberInput({ value = 0, onChange, ...props }: NumberInputProps)
       }}
       onBlur={(e) => {
         // Auto-format decimals and empty strings (e.g. ".2" becomes "0.2")
-        setLocalValue(value.toString());
+        setLocalValue(format(value));
         if (props.onBlur) props.onBlur(e);
       }}
       {...props}

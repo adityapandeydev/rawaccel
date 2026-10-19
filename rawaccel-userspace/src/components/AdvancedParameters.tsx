@@ -10,22 +10,9 @@ export function AdvancedParameters({ editor }: { editor: ProfileEditor }) {
   const { activeProfile, updateProfile, updateSpeed } = editor;
   return (
     <details className="panel advanced-panel">
-      <summary>Advanced configuration</summary>
+      <summary>Advanced</summary>
 
       <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-
-        {/* General */}
-        <h3 style={{ fontSize: "0.75rem", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em", marginTop: "0.5rem", marginBottom: "-0.25rem" }}>General</h3>
-        <div className="input-group" style={{ margin: 0 }}>
-          <label className="input-label">Sens Multiplier</label>
-          <NumberInput className="input-field selectable" value={activeProfile.yx_output_dpi_ratio} onChange={e => updateProfile("yx_output_dpi_ratio", safeParseFloat(e.target.value))} step="0.01" />
-        </div>
-        <div className="input-group" style={{ margin: 0 }}>
-          <label className="input-label">Output DPI</label>
-          <NumberInput className="input-field selectable" value={activeProfile.output_dpi} onChange={e => updateProfile("output_dpi", safeParseFloat(e.target.value))} step="1" />
-        </div>
-
-        <div style={{ height: "1px", backgroundColor: "var(--border)", margin: "0.5rem 0" }}></div>
 
         {/* Anisotropy */}
         <h3 style={{ fontSize: "0.75rem", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "-0.25rem" }}>Anisotropy (X | Y)</h3>

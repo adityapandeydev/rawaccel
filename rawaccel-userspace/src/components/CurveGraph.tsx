@@ -1,8 +1,8 @@
-import React, { useMemo, useEffect, useState } from 'react';
+import React, { useMemo, useEffect, useState, useId } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { listen } from '@tauri-apps/api/event';
 import { AccelArgs } from '../types';
-import { generateGraphData, GraphPoint } from '../math';
+import { generateGraphData, createEvaluator, GraphPoint } from '../math';
 import { trackerInputs, type MouseSpeed } from '../tracker';
 import { Zap, Activity, TrendingUp } from 'lucide-react';
 
@@ -23,6 +23,7 @@ export function CurveGraph({
   onUpdateLookupPoint
 }: CurveGraphProps) {
 
+  const plotId = useId();
   const [mouseSpeed, setMouseSpeed] = useState<MouseSpeed>({ speed_x: 0, speed_y: 0, speed_whole: 0 });
   const [dragging, setDragging] = useState<{ axis: "x"|"y", index: number } | null>(null);
   const [trackerUnavailable, setTrackerUnavailable] = useState(false);
@@ -175,14 +176,14 @@ export function CurveGraph({
     // Fixed Y ticks (5 intervals)
     const yTicks = [0, 0.2, 0.4, 0.6, 0.8, 1.0];
     
-    // Dynamic X ticks based on maxSpeed (intervals of 20)
-    const numXTicks = maxSpeed / 20;
+    // Dynamic X ticks based on maxSpeed (intervals of 10)
+    const numXTicks = maxSpeed / 10;
     const xTicks = Array.from({ length: numXTicks + 1 }, (_, i) => i / numXTicks);
 
     return (
       <motion.div 
         key={dataKey}
-        className="graph-card"
+        className="graph-card" aria-label={`${title} graph`}
         layout
         initial={{ opacity: 0, scale: 0.95, y: -20 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -190,7 +191,7 @@ export function CurveGraph({
         transition={{ type: "spring", stiffness: 300, damping: 30 }}
         style={{ flex: 1, display: "flex", flexDirection: "column", minHeight: 0 }}
       >
-        <div style={{ 
+        <div className="graph-caption" style={{
           display: "flex", 
           alignItems: "center", 
           justifyContent: "space-between",
@@ -204,10 +205,20 @@ export function CurveGraph({
           <span className="graph-title">{icon}{title}</span><span className="graph-unit">{yLabel}</span>
         </div>
         <div className="graph-plot">
+          <div className="graph-axis-title">{title === "Sensitivity" ? "Sensitivity (×)" : yLabel}</div>
           
           <div style={{ flex: 1, position: "relative" }}>
             {/* Grid Lines & Labels (Unscaled) */}
             <svg width="100%" height="100%" style={{ overflow: "visible", position: "absolute", top: 0, left: 0 }}>
+              {/* Fine grid and Tiered transition guides are display-only. */}
+              <defs><pattern id={`${plotId}-grid-${dataKey}`} width="20" height="20" patternUnits="userSpaceOnUse"><path d="M 20 0 H 0 V 20" fill="none" stroke="var(--border)" opacity="0.3" /></pattern></defs>
+              <rect width="100%" height="100%" fill={`url(#${plotId}-grid-${dataKey})`} />
+              {isSame && argsX.mode === 'tiered' && (argsX.t_type || 'linear') === 'linear' && [
+                [argsX.tiered_input_offset1, argsX.tiered_transition1], [argsX.tiered_input_offset2, argsX.tiered_transition2],
+              ].map(([start, width], index) => <g key={`stage-${index}`}>
+                <rect x={`${start / maxSpeed * 100}%`} width={`${Math.max(0, Math.min(width, maxSpeed - start)) / maxSpeed * 100}%`} height="100%" fill={color} opacity="0.055" />
+                {[start, start + width].filter(x => x >= 0 && x <= maxSpeed).map((x, i) => <line key={i} x1={`${x / maxSpeed * 100}%`} x2={`${x / maxSpeed * 100}%`} y1="0" y2="100%" stroke="var(--text-muted)" strokeDasharray="4 4" opacity="0.6" />)}
+              </g>)}
               {/* Y Axis Grid */}
               {yTicks.map(p => {
                 const isZero = p === 0;
@@ -243,12 +254,14 @@ export function CurveGraph({
               })}
               
               {/* Main Axes */}
-              <line x1="0" y1="0" x2="0" y2="100%" stroke="var(--text-main)" strokeWidth="2.5" />
-              <line x1="0" y1="100%" x2="100%" y2="100%" stroke="var(--text-main)" strokeWidth="2.5" />
+              <line x1="0" y1="0" x2="0" y2="100%" stroke="var(--text-main)" strokeWidth="1" />
+              <line x1="0" y1="100%" x2="100%" y2="100%" stroke="var(--text-main)" strokeWidth="1" />
             </svg>
 
             {/* The Curve Layer (Scaled) */}
             <svg width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none" style={{ overflow: "visible", position: "absolute", top: 0, left: 0, pointerEvents: "none" }}>
+              <defs><linearGradient id={`${plotId}-${dataKey}`} x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stopColor={isSame ? color : 'var(--color-x)'} stopOpacity="0.18" /><stop offset="100%" stopColor={isSame ? color : 'var(--color-x)'} stopOpacity="0.025" /></linearGradient></defs>
+              <path d={`${pathX} L 100,100 L 0,100 Z`} fill={`url(#${plotId}-${dataKey})`} stroke="none" />
               {/* The X Curve */}
               <path d={pathX} fill="none" stroke={isSame ? color : "var(--color-x)"} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
               
@@ -265,6 +278,10 @@ export function CurveGraph({
               onPointerMove={handlePointerMove}
               onPointerUp={handlePointerUp}
             >
+              {dataKey === 'sensitivity' && isSame && argsX.mode === 'tiered' && (argsX.t_type || 'linear') === 'linear' && Array.from(new Set([
+                argsX.tiered_input_offset1, argsX.tiered_input_offset1 + argsX.tiered_transition1,
+                argsX.tiered_input_offset2, argsX.tiered_input_offset2 + argsX.tiered_transition2,
+              ])).filter(x => x >= 0 && x <= maxSpeed).map(x => <circle key={x} cx={`${x / maxSpeed * 100}%`} cy={`${100 - (createEvaluator(argsX)(Math.max(x, 0.001)) - minY) / (maxY - minY) * 100}%`} r="4.5" fill={color} stroke="var(--text-main)" strokeWidth="1" />)}
               {/* Lookup Table Interactive Points */}
               {dataKey === "sensitivity" && (
                 <>
@@ -358,7 +375,7 @@ export function CurveGraph({
             </svg>
             
             {/* X-Axis Title */}
-            <div style={{ position: "absolute", bottom: "-2.2rem", left: "50%", transform: "translateX(-50%)", fontSize: "0.65rem", fontWeight: 500, color: "var(--text-muted)", whiteSpace: "nowrap" }}>
+            <div className="graph-input-title" style={{ position: "absolute", bottom: "-2.2rem", left: "50%", transform: "translateX(-50%)", fontSize: "0.65rem", fontWeight: 500, color: "var(--text-muted)", whiteSpace: "nowrap" }}>
               Input Speed (counts/ms)
             </div>
             
@@ -369,11 +386,8 @@ export function CurveGraph({
   };
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100%", width: "100%", position: "relative" }}>
-      <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)', margin: '0 0 0.5rem' }} title="Sum of relative packet distances over approximately 16 ms windows, across all mice. Combined uses Euclidean distance; components use absolute axis distances. No device DPI, profile weighting, rotation, snapping, clamps or smoothing is applied. Raw Input is not established as pre-filter input; dots are theoretical curve projections, not measured kernel output.">
-        {trackerUnavailable ? 'Tracker unavailable. ' : 'Tracker: aggregate Raw Input estimate. '}Unscaled counts; device/profile transforms excluded. Dots are theoretical previews.
-      </p>
-      <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "0.5rem", overflowY: "auto", minHeight: 0 }} className="custom-scrollbar">
+    <div className={`graph-collection ${visibleGraphs.length === 1 ? 'single' : 'multiple'}`}>
+      <div className="graph-deck custom-scrollbar">
         <AnimatePresence mode="popLayout">
           {visibleGraphs.includes("sensitivity") && renderGraph("Sensitivity", <Zap size={15} color="var(--color-sensitivity)" />, "sensitivity", "Ratio of Output to Input", "var(--color-sensitivity)")}
           {visibleGraphs.includes("velocity") && renderGraph("Velocity", <Activity size={15} color="var(--color-velocity)" />, "velocity", "Output Velocity (counts/ms)", "var(--color-velocity)")}
@@ -383,7 +397,7 @@ export function CurveGraph({
 
       {/* Legend */}
       {!isSame && (
-        <div style={{ display: "flex", justifyContent: "center", gap: "1.5rem", marginTop: "1rem", fontSize: "0.75rem", color: "var(--text-muted)" }}>
+        <div style={{ display: "flex", justifyContent: "center", gap: "1.5rem", marginTop: "0.5rem", fontSize: "0.75rem", color: "var(--text-muted)" }}>
           <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
             <div style={{ width: "16px", height: "3px", backgroundColor: "var(--color-x)" }} /> X Axis
           </div>
@@ -392,6 +406,10 @@ export function CurveGraph({
           </div>
         </div>
       )}
+      <div className="live-input" title="Aggregate relative Raw Input estimate across all mice, over roughly 16 ms windows. Unscaled counts; DPI, profile weighting, geometry, clamps and smoothing are excluded. Dots are theoretical curve projections, not measured kernel output.">
+        <span>Live input</span><strong>{trackerUnavailable ? '—' : whole ? mouseSpeed.speed_whole.toFixed(1) : `X ${mouseSpeed.speed_x.toFixed(1)} / Y ${mouseSpeed.speed_y.toFixed(1)}`}</strong><span className="live-unit">counts/ms</span>
+        <span className="live-caption">{trackerUnavailable ? 'Tracker unavailable' : 'Aggregate Raw Input · theoretical preview'}</span>
+      </div>
     </div>
   );
 }

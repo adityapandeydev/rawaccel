@@ -1,5 +1,7 @@
 import { NumberInput } from './NumberInput';
 import { CustomSelect } from './CustomSelect';
+import { TieredParameters } from './TieredParameters';
+import { ProcessingControl } from './ProcessingControl';
 import type { Notify } from '../hooks/useNotifications';
 import type { ProfileEditor } from '../hooks/useProfileEditor';
 const safeParseFloat = (val: string) => {
@@ -16,13 +18,16 @@ const copyLookupTable = (table: { x: number; y: number }[]) =>
   table.map((point) => ({ ...point }));
 
 
-export function CurveParameters({ editor, tieredApplyEnabled, notify: setModalState }: {
-  editor: ProfileEditor; tieredApplyEnabled: boolean; notify: Notify;
+export function CurveParameters({ editor, notify: setModalState }: {
+  editor: ProfileEditor; notify: Notify;
 }) {
   const { activeAccel, updateAccel, updateLookup } = editor;
   return (
-    <div className="panel" style={{ padding: "1.5rem" }}>
-      <div className="panel-header" style={{ marginBottom: "1.5rem", display: "flex", alignItems: "center", gap: "1rem" }}>
+    <details className="panel acceleration-panel" open>
+      <summary>Acceleration</summary>
+      <div className="acceleration-body">
+      <div className="mode-row input-group">
+        <span className="input-label">Mode</span>
         <div style={{ flex: 1 }}>
           <CustomSelect
             label="Acceleration mode"
@@ -50,13 +55,14 @@ export function CurveParameters({ editor, tieredApplyEnabled, notify: setModalSt
               { value: "natural", label: "Natural" },
               { value: "power", label: "Power" },
               { value: "synchronous", label: "Synchronous" },
-              { value: "tiered", label: tieredApplyEnabled ? "Tiered" : "Tiered (Preview)" },
+              { value: "tiered", label: "Tiered" },
               { value: "lookup", label: "Lookup Table" },
               { value: "noaccel", label: "Off" },
             ]}
           />
         </div>
 
+      </div>
         {/* Shared Gain Checkbox - Beside Mode Selector */}
         {activeAccel.mode !== "noaccel" && activeAccel.mode !== "lookup" && (
           <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", cursor: (activeAccel.mode === "tiered" && (!activeAccel.t_type || activeAccel.t_type === "linear")) ? "not-allowed" : "pointer", whiteSpace: "nowrap", opacity: (activeAccel.mode === "tiered" && (!activeAccel.t_type || activeAccel.t_type === "linear")) ? 0.5 : 1 }}>
@@ -70,7 +76,8 @@ export function CurveParameters({ editor, tieredApplyEnabled, notify: setModalSt
             <span style={{ fontSize: "0.85rem", fontWeight: 500, color: "var(--text-main)" }}>Gain</span>
           </label>
         )}
-      </div>
+
+      {activeAccel.mode !== "tiered" && <ProcessingControl editor={editor} />}
 
       <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
 
@@ -445,94 +452,7 @@ export function CurveParameters({ editor, tieredApplyEnabled, notify: setModalSt
         {/* ───────────────────────────────────────────────────────── */}
         {/* TIERED MODE                                                 */}
         {/* ───────────────────────────────────────────────────────── */}
-        {activeAccel.mode === "tiered" && (
-          <>
-            <div className="input-group">
-              <label className="input-label">Type</label>
-              <CustomSelect
-                width="120px"
-                value={activeAccel.t_type || "linear"}
-                onChange={(val) => {
-                  updateAccel("t_type", val);
-                  if (val === "linear") {
-                    updateAccel("gain", false);
-                  }
-                }}
-                options={[
-                  { value: "linear", label: "Linear" },
-                  { value: "natural", label: "Natural" }
-                ]}
-              />
-            </div>
-
-            {/* TIER 1 */}
-            <div className="input-group">
-              <label className="input-label">Tier 1 Multiplier</label>
-              <NumberInput className="input-field selectable" value={activeAccel.tiered_multiplier1} onChange={e => updateAccel("tiered_multiplier1", safeParseFloat(e.target.value))} step="0.1" />
-            </div>
-            <div className="input-group">
-              <label className="input-label">Tier 1 Input Offset</label>
-              <NumberInput className="input-field selectable" value={activeAccel.tiered_input_offset1} onChange={e => {
-                let val = safeParseFloat(e.target.value);
-                const maxOffset1 = activeAccel.tiered_input_offset2 - ((!activeAccel.t_type || activeAccel.t_type === "linear") ? activeAccel.tiered_transition1 : 0);
-                if (val > maxOffset1) val = maxOffset1;
-                if (val < 0) val = 0;
-                updateAccel("tiered_input_offset1", val);
-              }} step="0.1" />
-            </div>
-            {(activeAccel.t_type === "natural") && (
-              <div className="input-group">
-                <label className="input-label">Tier 1 Decay Rate</label>
-                <NumberInput className="input-field selectable" value={activeAccel.tiered_decay_rate1} onChange={e => updateAccel("tiered_decay_rate1", safeParseFloat(e.target.value))} step="0.01" />
-              </div>
-            )}
-
-            {/* TIER 2 */}
-            <div className="input-group">
-              <label className="input-label">Tier 2 Multiplier</label>
-              <NumberInput className="input-field selectable" value={activeAccel.tiered_multiplier2} onChange={e => updateAccel("tiered_multiplier2", safeParseFloat(e.target.value))} step="0.1" />
-            </div>
-            {((activeAccel.t_type || "linear") === "linear") && (
-              <div className="input-group">
-                <label className="input-label">Tier 2 Transition</label>
-                <NumberInput className="input-field selectable" value={activeAccel.tiered_transition1} onChange={e => {
-                  let val = safeParseFloat(e.target.value);
-                  const maxTransition = activeAccel.tiered_input_offset2 - activeAccel.tiered_input_offset1;
-                  if (val > maxTransition) val = maxTransition;
-                  if (val < 0) val = 0;
-                  updateAccel("tiered_transition1", val);
-                }} step="0.1" />
-              </div>
-            )}
-            <div className="input-group">
-              <label className="input-label">Tier 2 Input Offset</label>
-              <NumberInput className="input-field selectable" value={activeAccel.tiered_input_offset2} onChange={e => {
-                let val = safeParseFloat(e.target.value);
-                const minOffset2 = activeAccel.tiered_input_offset1 + ((!activeAccel.t_type || activeAccel.t_type === "linear") ? activeAccel.tiered_transition1 : 0);
-                if (val < minOffset2) val = minOffset2;
-                updateAccel("tiered_input_offset2", val);
-              }} step="0.1" />
-            </div>
-            {(activeAccel.t_type === "natural") && (
-              <div className="input-group">
-                <label className="input-label">Tier 2 Decay Rate</label>
-                <NumberInput className="input-field selectable" value={activeAccel.tiered_decay_rate2} onChange={e => updateAccel("tiered_decay_rate2", safeParseFloat(e.target.value))} step="0.01" />
-              </div>
-            )}
-
-            {/* TIER 3 */}
-            <div className="input-group">
-              <label className="input-label">Tier 3 Multiplier</label>
-              <NumberInput className="input-field selectable" value={activeAccel.tiered_multiplier3} onChange={e => updateAccel("tiered_multiplier3", safeParseFloat(e.target.value))} step="0.1" />
-            </div>
-            {((activeAccel.t_type || "linear") === "linear") && (
-              <div className="input-group">
-                <label className="input-label">Tier 3 Transition</label>
-                <NumberInput className="input-field selectable" value={activeAccel.tiered_transition2} onChange={e => updateAccel("tiered_transition2", safeParseFloat(e.target.value))} step="0.1" />
-              </div>
-            )}
-          </>
-        )}
+        {activeAccel.mode === "tiered" && <TieredParameters editor={editor} />}
 
         {activeAccel.mode === "noaccel" && (
           <div style={{ textAlign: "center", color: "var(--text-muted)", padding: "1rem" }}>
@@ -541,6 +461,7 @@ export function CurveParameters({ editor, tieredApplyEnabled, notify: setModalSt
         )}
 
       </div>
-    </div>
+      </div>
+    </details>
   );
 }
