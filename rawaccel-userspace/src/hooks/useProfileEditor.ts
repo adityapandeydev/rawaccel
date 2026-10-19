@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import { splitSettingsDocument, type SettingsDocument } from '../settingsDocument';
+import { serializeSettingsDocument, splitSettingsDocument, type SettingsDocument } from '../settingsDocument';
 import { defaultProfile, type Profile, type DeviceConfig, type AccelArgs, SETTINGS_SCHEMA_VERSION } from '../types';
 import { renameProfileState, deleteProfileState } from '../profileState';
 import type { Notify } from './useNotifications';
@@ -14,6 +14,9 @@ export function useProfileEditor(setModalState: Notify) {
   const [settingsMetadata, setSettingsMetadata] = useState<Record<string, unknown>>({ schema_version: SETTINGS_SCHEMA_VERSION });
 
   const [activeCurveAxis, setActiveCurveAxis] = useState<"x" | "y">("x");
+  const [savedSnapshot, setSavedSnapshot] = useState<string | null>(null);
+  const [snapshotOrigin, setSnapshotOrigin] = useState<'loaded' | 'saved'>('loaded');
+  const markSaved = (snapshot: string) => { setSavedSnapshot(snapshot); setSnapshotOrigin('saved'); };
   const linkXY = activeProfile.speed_processor_args.whole;
   const replaceDocument = useCallback((document: SettingsDocument) => {
     const { profiles, devices, metadata } = splitSettingsDocument(document);
@@ -24,6 +27,10 @@ export function useProfileEditor(setModalState: Notify) {
       setActiveCurveAxis('x');
     }
     if (devices) setDeviceConfig(devices);
+    if (profiles?.length) {
+      setSavedSnapshot(serializeSettingsDocument(metadata, profiles, devices ?? []));
+      setSnapshotOrigin('loaded');
+    }
   }, []);
   // State Update Helpers
   const updateActiveProfile = (updater: (p: Profile) => Profile) => {
@@ -136,7 +143,7 @@ export function useProfileEditor(setModalState: Notify) {
     setActiveProfileIndex(next.activeIndex);
     if (activeProfileIndex === idx) setActiveCurveAxis("x");
   };
-  return { profiles, activeProfileIndex, replaceDocument,
+  return { profiles, activeProfileIndex, replaceDocument, savedSnapshot, snapshotOrigin, markSaved,
     activeProfile, deviceConfig, setDeviceConfig, settingsMetadata,
     activeCurveAxis, linkXY, activeAccel, updateActiveProfile,
     updateProfile, renameProfile, updateSpeed, updateAccel, updateLookup,

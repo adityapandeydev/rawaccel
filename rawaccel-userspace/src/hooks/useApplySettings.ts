@@ -13,6 +13,7 @@ import type { Notify } from './useNotifications';
 export function useApplySettings(editor: ProfileEditor, driverStatus: ReturnType<typeof useDriverStatus>, notify: Notify) {
   const [runApply] = useState(createApplyGate);
   const [isApplying, setIsApplying] = useState(false);
+  const [appliedSnapshot, setAppliedSnapshot] = useState<string | null>(null);
   const { profiles, deviceConfig, settingsMetadata } = editor;
   const applyDisabledReason = applyBlockReason(driverStatus, profiles);
   const applySettings = () => runApply(async () => {
@@ -32,6 +33,8 @@ export function useApplySettings(editor: ProfileEditor, driverStatus: ReturnType
         console.log('Applying Settings...', profiles);
         const settingsJson = serializeSettingsDocument(settingsMetadata, profiles, deviceConfig);
         const result = await invoke<SettingsApplyReport>('apply_settings', { settingsJson });
+        if (result.applied) setAppliedSnapshot(settingsJson);
+        if (result.saved) editor.markSaved(settingsJson);
         const outcome = describeApplyOutcome(result);
         if (outcome.notification) notify(outcome.notification);
         if (outcome.succeeded) console.log('Settings applied and saved successfully.');
@@ -47,5 +50,5 @@ export function useApplySettings(editor: ProfileEditor, driverStatus: ReturnType
       void driverStatus.afterApply();
     }
   });
-  return { isApplying, applyDisabledReason, applySettings };
+  return { isApplying, applyDisabledReason, applySettings, appliedSnapshot };
 }
