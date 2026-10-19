@@ -1,16 +1,19 @@
 import { useDriverStatus } from "./hooks/useDriverStatus";
 import { useDevices } from "./hooks/useDevices";
 import { useProfileEditor } from "./hooks/useProfileEditor";
+import { useSettingsTransfer } from "./hooks/useSettingsTransfer";
+import { SettingsTransfer } from "./components/SettingsTransfer";
+import { serializeSettingsDocument } from "./settingsDocument";
 import { createApplyGate } from "./applyGate";
 import { applyBlockReason } from "./driverStatus";
 import { DriverStatusIndicator } from "./components/DriverStatus";
 import { usePreferences } from "./hooks/usePreferences";
 import { useNotifications } from "./hooks/useNotifications";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { Moon, Sun, Monitor, Layers, Activity, Plus, Save, Download, Upload, Mouse, Menu, X, Settings, Maximize, Minimize, Check } from "lucide-react";
+import { Moon, Sun, Monitor, Layers, Activity, Plus, Save, Mouse, Menu, X, Settings, Maximize, Minimize, Check } from "lucide-react";
 import "./index.css";
-import { SettingsLoadReport, SettingsApplyReport } from "./types";
+import { SettingsApplyReport } from "./types";
 import { validateSettings } from "./validation";
 import { NumberInput } from "./components/NumberInput";
 import { CurveGraph } from "./components/CurveGraph";
@@ -48,10 +51,11 @@ function App() {
   const [isProfilesExpanded, setIsProfilesExpanded] = useState(false);
   const { notification: modalState, notify: setModalState, dismiss: dismissNotification } = useNotifications();
   const editor = useProfileEditor(setModalState);
-  const { profiles, setProfiles, activeProfileIndex, setActiveProfileIndex, activeProfile,
-    deviceConfig, setDeviceConfig, settingsMetadata, setSettingsMetadata, activeCurveAxis,
-    setActiveCurveAxis, linkXY, activeAccel, updateActiveProfile, updateProfile, renameProfile,
+  const { profiles, activeProfileIndex, activeProfile,
+    deviceConfig, setDeviceConfig, settingsMetadata, activeCurveAxis,
+    linkXY, activeAccel, updateActiveProfile, updateProfile, renameProfile,
     updateSpeed, updateAccel, updateLookup, handleLinkXY, handleSelectXAxis, handleSelectYAxis } = editor;
+  const transfer = useSettingsTransfer(editor, setModalState);
   
   const applyDisabledReason = applyBlockReason(driverStatus, profiles);
   const tieredPreview = !driverStatus.report?.tiered_apply_enabled && (activeProfile.accel_x.mode === "tiered" || activeProfile.accel_y.mode === "tiered");
@@ -84,11 +88,7 @@ function App() {
 
       try {
         console.log("Applying Settings...", profiles);
-        const profileJson = JSON.stringify({
-          ...settingsMetadata,
-          profiles: profiles,
-          devices: configToUse
-        });
+        const profileJson = serializeSettingsDocument(settingsMetadata, profiles, configToUse);
         const result = await invoke<SettingsApplyReport>('apply_settings', { settingsJson: profileJson });
         if (!result.saved) {
           setModalState({
@@ -119,42 +119,6 @@ function App() {
     }
     });
   }
-
-  // Load settings on startup
-  useEffect(() => {
-    async function initSettings() {
-      try {
-        const result = await invoke<SettingsLoadReport>('load_settings');
-        const parsed = JSON.parse(result.settings_json);
-        const metadata = { ...parsed };
-        delete metadata.profiles;
-        delete metadata.devices;
-        setSettingsMetadata(metadata);
-        if (result.recovered || result.migrated) {
-          setModalState({
-            isOpen: true,
-            title: result.recovered ? "Settings Recovered" : "Settings Upgraded",
-            message: `Settings were loaded from ${result.source}.${result.migrated ? " They were upgraded in memory; use Apply Settings to save the upgrade." : ""} Your original files have not been changed.\n${result.warnings.join("\n")}`,
-          });
-        }
-        if (parsed && parsed.profiles && parsed.profiles.length > 0) {
-            console.log("Loaded settings from backend:", parsed.profiles);
-            setProfiles(parsed.profiles);
-            setActiveProfileIndex(0);
-            setActiveCurveAxis("x");
-        }
-        if (parsed && parsed.devices) {
-            setDeviceConfig(parsed.devices);
-        }
-      } catch (error) {
-        console.error("Failed to load settings or devices on startup:", error);
-        if (error !== "No settings.json found") {
-          setModalState({ isOpen: true, title: "Settings Could Not Be Loaded", message: String(error) });
-        }
-      }
-    }
-    initSettings();
-  }, []);
 
   const navigateTo = (tab: typeof activeTab) => {
     setActiveTab(tab);
@@ -283,70 +247,7 @@ function App() {
         </nav>
         
         <div style={{ paddingTop: "1.25rem", borderTop: "1px solid var(--border)", display: "flex", flexDirection: "column", gap: "1rem" }}>
-          <div style={{ display: "flex", gap: "0.5rem" }}>
-            <input
-              type="file"
-              accept=".json"
-              id="import-settings-upload"
-              style={{ display: "none" }}
-              onChange={async (e) => {
-                const file = e.target.files?.[0];
-                if (!file) return;
-                try {
-                  const text = await file.text();
-                  const migrated: string = await invoke('import_settings', { rawJson: text });
-                  const parsed = JSON.parse(migrated);
-                  const metadata = { ...parsed };
-                  delete metadata.profiles;
-                  delete metadata.devices;
-                  setSettingsMetadata(metadata);
-                  if (parsed && parsed.profiles && parsed.profiles.length > 0) {
-                    setProfiles(parsed.profiles);
-                    setActiveProfileIndex(0);
-                    setActiveCurveAxis("x");
-                  }
-                  if (parsed && parsed.devices) {
-                    setDeviceConfig(parsed.devices);
-                  }
-                  setModalState({
-                    isOpen: true,
-                    title: "Settings Imported",
-                    message: "Settings loaded and migrated successfully!"
-                  });
-                } catch (err: any) {
-                  setModalState({
-                    isOpen: true,
-                    title: "Import Error",
-                    message: typeof err === "string" ? err : "Failed to parse or migrate settings JSON."
-                  });
-                }
-                e.target.value = "";
-              }}
-            />
-            <button 
-              className="btn" 
-              style={{ flex: 1 }}
-              onClick={() => document.getElementById("import-settings-upload")?.click()}
-            >
-              <Upload size={14} /> Load
-            </button>
-            <button 
-              className="btn" 
-              style={{ flex: 1 }}
-              onClick={() => {
-                const currentData = JSON.stringify({ ...settingsMetadata, profiles, devices: deviceConfig }, null, 2);
-                const blob = new Blob([currentData], { type: "application/json" });
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement("a");
-                a.href = url;
-                a.download = "settings.json";
-                a.click();
-                URL.revokeObjectURL(url);
-              }}
-            >
-              <Download size={14} /> Save
-            </button>
-          </div>
+          <SettingsTransfer {...transfer} />
         </div>
       </aside>
 

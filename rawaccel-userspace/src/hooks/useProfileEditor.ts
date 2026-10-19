@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
+import { splitSettingsDocument, type SettingsDocument } from '../settingsDocument';
 import { defaultProfile, type Profile, type DeviceConfig, type AccelArgs, SETTINGS_SCHEMA_VERSION } from '../types';
 import { renameProfileState, deleteProfileState } from '../profileState';
 import type { Notify } from './useNotifications';
@@ -14,6 +15,16 @@ export function useProfileEditor(setModalState: Notify) {
 
   const [activeCurveAxis, setActiveCurveAxis] = useState<"x" | "y">("x");
   const linkXY = activeProfile.speed_processor_args.whole;
+  const replaceDocument = useCallback((document: SettingsDocument) => {
+    const { profiles, devices, metadata } = splitSettingsDocument(document);
+    setSettingsMetadata(metadata);
+    if (profiles && profiles.length > 0) {
+      setProfiles(profiles);
+      setActiveProfileIndex(0);
+      setActiveCurveAxis('x');
+    }
+    if (devices) setDeviceConfig(devices);
+  }, []);
   // State Update Helpers
   const updateActiveProfile = (updater: (p: Profile) => Profile) => {
     setProfiles(prev => prev.map((p, i) => i === activeProfileIndex ? updater(p) : p));
@@ -126,9 +137,9 @@ export function useProfileEditor(setModalState: Notify) {
     setActiveProfileIndex(next.activeIndex);
     if (activeProfileIndex === idx) setActiveCurveAxis("x");
   };
-  return { profiles, setProfiles, activeProfileIndex, setActiveProfileIndex,
-    activeProfile, deviceConfig, setDeviceConfig, settingsMetadata, setSettingsMetadata,
-    activeCurveAxis, setActiveCurveAxis, linkXY, activeAccel, updateActiveProfile,
+  return { profiles, activeProfileIndex, replaceDocument,
+    activeProfile, deviceConfig, setDeviceConfig, settingsMetadata,
+    activeCurveAxis, linkXY, activeAccel, updateActiveProfile,
     updateProfile, renameProfile, updateSpeed, updateAccel, updateLookup,
     handleLinkXY, handleSelectXAxis, handleSelectYAxis, addProfile, selectProfile, deleteProfile };
 }
