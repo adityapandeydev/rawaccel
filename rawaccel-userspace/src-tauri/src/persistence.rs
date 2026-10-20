@@ -11,6 +11,29 @@ pub(crate) struct SettingsPaths {
     pub mirror: Option<PathBuf>,
 }
 
+impl SettingsPaths {
+    pub(crate) fn resolve(
+        adjacent: PathBuf,
+        appdata: Option<PathBuf>,
+        portable: bool,
+    ) -> Result<Self, String> {
+        if portable {
+            Ok(Self {
+                primary: adjacent.clone(),
+                fallback: adjacent,
+                mirror: appdata,
+            })
+        } else {
+            let primary = appdata.ok_or("Cannot locate Local AppData for RawAccel settings")?;
+            Ok(Self {
+                primary,
+                fallback: adjacent.clone(),
+                mirror: Some(adjacent),
+            })
+        }
+    }
+}
+
 #[derive(Debug, Serialize)]
 pub struct SaveReport {
     pub saved_paths: Vec<String>,
@@ -46,7 +69,7 @@ pub(crate) fn load(
             locations.push(path.clone());
         }
     }
-    // Prefer current copies to older recovery files, retaining portable priority.
+    // Recovery/import never changes which file the next explicit save writes.
     let candidates: Vec<_> = locations
         .iter()
         .map(|path| (path.clone(), false))
@@ -219,26 +242,20 @@ fn save_with_writer(
         }
     };
 
-    // Portable location first; CWD is a fallback, not another mandatory copy.
-    let primary_saved = attempt(&paths.primary, false);
-    let fallback_attempted = !primary_saved && paths.fallback != paths.primary;
-    if fallback_attempted {
-        attempt(&paths.fallback, false);
+    // Do not save only a secondary copy: the unchanged primary would win on
+    // the next load. Fallback is a read-only legacy import/recovery location.
+    if !attempt(&paths.primary, true) {
+        return Err(format!(
+            "Failed to save authoritative settings:\n{}",
+            report.warnings.join("\n")
+        ));
     }
     if let Some(mirror) = &paths.mirror {
-        if mirror != &paths.primary && (!fallback_attempted || mirror != &paths.fallback) {
+        if mirror != &paths.primary {
             attempt(mirror, true);
         }
     }
-
-    if report.saved_paths.is_empty() {
-        Err(format!(
-            "Failed to save settings to any location:\n{}",
-            report.warnings.join("\n")
-        ))
-    } else {
-        Ok(report)
-    }
+    Ok(report)
 }
 
 #[cfg(test)]
@@ -282,6 +299,76 @@ mod tests {
     }
 
     #[test]
+    fn normal_install_uses_rawaccel_appdata_and_imports_adjacent_settings() {
+        let dir = TestDirectory::new();
+        let adjacent = dir.0.join("custom install").join("settings.json");
+        let appdata = dir.0.join("AppData").join("RawAccel").join("settings.json");
+        let paths = SettingsPaths::resolve(adjacent.clone(), Some(appdata.clone()), false).unwrap();
+        assert_eq!(paths.primary, appdata);
+        assert_eq!(paths.fallback, adjacent);
+        assert_eq!(paths.mirror, Some(adjacent));
+    }
+
+    #[test]
+    fn portable_mode_keeps_adjacent_settings_authoritative() {
+        let dir = TestDirectory::new();
+        let adjacent = dir.0.join("settings.json");
+        let appdata = dir.0.join("AppData").join("RawAccel").join("settings.json");
+        let paths = SettingsPaths::resolve(adjacent.clone(), Some(appdata.clone()), true).unwrap();
+        assert_eq!(paths.primary, adjacent);
+        assert_eq!(paths.fallback, adjacent);
+        assert_eq!(paths.mirror, Some(appdata));
+        assert!(SettingsPaths::resolve(adjacent.clone(), None, true).is_ok());
+        assert!(SettingsPaths::resolve(adjacent, None, false).is_err());
+    }
+
+    #[test]
+    fn mirror_failure_keeps_the_new_authoritative_settings_and_reports_warning() {
+        let dir = TestDirectory::new();
+        let paths = dir.paths();
+        let report = save_with_writer("new settings", &paths, |path, content| {
+            if Some(path) == paths.mirror.as_deref() {
+                Err(io::Error::new(
+                    io::ErrorKind::PermissionDenied,
+                    "mirror locked",
+                ))
+            } else {
+                fs::write(path, content)
+            }
+        })
+        .unwrap();
+        assert_eq!(
+            report.saved_paths,
+            vec![paths.primary.display().to_string()]
+        );
+        assert_eq!(report.warnings.len(), 1);
+        assert_eq!(fs::read_to_string(&paths.primary).unwrap(), "new settings");
+    }
+
+    #[test]
+    fn installed_save_then_load_uses_appdata_even_when_adjacent_copy_is_stale() {
+        let dir = TestDirectory::new();
+        let adjacent = dir.0.join("settings.json");
+        fs::write(&adjacent, "{\"old\":true}").unwrap();
+        let appdata = dir.0.join("RawAccel").join("settings.json");
+        let paths = SettingsPaths::resolve(adjacent, Some(appdata.clone()), false).unwrap();
+        save_with_writer("{\"new\":true}", &paths, |path, content| {
+            if path == paths.primary {
+                fs::write(path, content)
+            } else {
+                Err(io::Error::new(
+                    io::ErrorKind::PermissionDenied,
+                    "read-only install",
+                ))
+            }
+        })
+        .unwrap();
+        let loaded = load(&paths, parse_test_json).unwrap();
+        assert_eq!(loaded.settings_json, "{\"new\":true}");
+        assert_eq!(loaded.source, appdata.display().to_string());
+    }
+
+    #[test]
     fn existing_stale_backup_does_not_turn_failed_writes_into_success() {
         let dir = TestDirectory::new();
         let paths = dir.paths();
@@ -294,20 +381,43 @@ mod tests {
         })
         .unwrap_err();
 
-        assert!(error.contains("Failed to save settings to any location"));
+        assert!(error.contains("Failed to save authoritative settings"));
         assert_eq!(fs::read_to_string(mirror).unwrap(), "old settings");
     }
 
     #[test]
-    fn successful_mirror_is_reported_when_both_portable_locations_fail() {
+    fn failed_authoritative_write_cannot_report_a_new_mirror_as_saved() {
+        let dir = TestDirectory::new();
+        let paths = dir.paths();
+        fs::write(&paths.primary, "old settings").unwrap();
+        let result = save_with_writer("new settings", &paths, |path, content| {
+            if path == paths.primary {
+                Err(io::Error::new(io::ErrorKind::PermissionDenied, "locked"))
+            } else {
+                fs::write(path, content)
+            }
+        });
+        assert!(
+            result.is_err(),
+            "A stale primary must not win at next startup after a reported successful save"
+        );
+        assert_eq!(fs::read_to_string(&paths.primary).unwrap(), "old settings");
+        assert!(!paths.fallback.exists());
+        assert!(!paths.mirror.unwrap().exists());
+    }
+
+    #[test]
+    fn saving_creates_the_authoritative_directory_and_mirror() {
         let dir = TestDirectory::new();
         let mut paths = dir.paths();
         paths.primary = dir.0.join("missing").join("portable.json");
         paths.fallback = dir.0.join("also-missing").join("cwd.json");
         let report = save("new settings", &paths).unwrap();
 
-        assert_eq!(report.saved_paths.len(), 1);
-        assert_eq!(report.warnings.len(), 2);
+        assert_eq!(report.saved_paths.len(), 2);
+        assert!(report.warnings.is_empty());
+        assert_eq!(fs::read_to_string(&paths.primary).unwrap(), "new settings");
+        assert!(!paths.fallback.exists());
         assert_eq!(
             fs::read_to_string(paths.mirror.unwrap()).unwrap(),
             "new settings"

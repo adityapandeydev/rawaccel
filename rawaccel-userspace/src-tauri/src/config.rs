@@ -16,22 +16,16 @@ pub(crate) fn settings_schema_version(value: &serde_json::Value) -> Result<u64, 
     Ok(version)
 }
 
-/// Gets the primary settings path: right next to the running executable.
-pub fn get_local_settings_path() -> PathBuf {
-    if let Ok(exe_path) = std::env::current_exe() {
-        if let Some(parent) = exe_path.parent() {
-            return parent.join("settings.json");
-        }
-    }
-    PathBuf::from("settings.json")
+/// Legacy import / portable settings beside the executable, never relative to CWD.
+pub fn get_local_settings_path() -> Result<PathBuf, String> {
+    let exe = std::env::current_exe().map_err(|error| error.to_string())?;
+    exe.parent().map(|parent| parent.join("settings.json"))
+        .ok_or_else(|| "Cannot locate the RawAccel executable directory".to_string())
 }
 
 /// Gets the backup settings path in %LocalAppData%\RawAccel\settings.json
 pub fn get_appdata_settings_path() -> Option<PathBuf> {
-    if let Ok(local_app_data) = std::env::var("LOCALAPPDATA") {
-        return Some(PathBuf::from(local_app_data).join("RawAccel").join("settings.json"));
-    }
-    None
+    dirs::data_local_dir().map(|path| path.join("RawAccel").join("settings.json"))
 }
 
 #[derive(Debug, PartialEq)]
@@ -93,7 +87,7 @@ pub fn parse_or_migrate_settings(raw_json: &str) -> Result<AppConfig, String> {
 }
 /// Loads and validates candidates without rewriting originals or normalizing files.
 pub fn load_settings_with_report() -> Result<crate::persistence::LoadReport, String> {
-    crate::persistence::load(&settings_paths(), parse_settings_for_load)
+    crate::persistence::load(&settings_paths()?, parse_settings_for_load)
 }
 
 /// The silent startup path needs only JSON; diagnostics remain available in logs.
@@ -118,20 +112,15 @@ pub(crate) fn parse_settings_for_load(raw: &str) -> Result<String, String> {
     }
 }
 
-pub(crate) fn settings_paths() -> crate::persistence::SettingsPaths {
-    crate::persistence::SettingsPaths {
-        primary: get_local_settings_path(),
-        fallback: std::env::current_dir()
-            .unwrap_or_else(|_| PathBuf::from("."))
-            .join("settings.json"),
-        mirror: get_appdata_settings_path(),
-    }
+pub(crate) fn settings_paths() -> Result<crate::persistence::SettingsPaths, String> {
+    let adjacent = get_local_settings_path()?;
+    let portable = adjacent.with_file_name("portable.txt").is_file();
+    crate::persistence::SettingsPaths::resolve(adjacent, get_appdata_settings_path(), portable)
 }
 
-/// Saves portable settings (with a CWD fallback) and an AppData mirror.
-/// Success means at least one write succeeded; partial failures are reported.
+/// The authoritative save must succeed; failure to update its mirror is a warning.
 pub fn save_settings_to_disk(settings_json: &str) -> Result<crate::persistence::SaveReport, String> {
-    crate::persistence::save(settings_json, &settings_paths())
+    crate::persistence::save(settings_json, &settings_paths()?)
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -987,8 +976,9 @@ mod tests {
 
     #[test]
     fn local_settings_path_resolves_json() {
-        let path = super::get_local_settings_path();
+        let path = super::get_local_settings_path().unwrap();
         assert!(path.ends_with("settings.json"));
+        assert!(path.is_absolute());
     }
 
     #[test]
