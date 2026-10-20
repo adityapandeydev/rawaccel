@@ -38,7 +38,7 @@ export function useSettingsTransfer(editor: ProfileEditor, notify: Notify) {
       const text = await file.text();
       const migrated = await invoke<string>('import_settings', { rawJson: text });
       replaceDocument(JSON.parse(migrated));
-      notify({ isOpen: true, title: 'Settings Imported', message: 'Settings loaded and migrated successfully!' });
+      notify({ isOpen: true, kind: 'info', title: 'Settings Imported', message: 'Settings loaded into the editor. Use Apply & Save to update the driver and startup settings.' });
     } catch (error) {
       notify({ isOpen: true, title: 'Import Error',
         message: typeof error === 'string' ? error : 'Failed to parse or migrate settings JSON.' });

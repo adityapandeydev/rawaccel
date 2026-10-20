@@ -37,6 +37,7 @@ export function useApplySettings(editor: ProfileEditor, driverStatus: ReturnType
         if (result.saved) editor.markSaved(settingsJson);
         const outcome = describeApplyOutcome(result);
         if (outcome.notification) notify(outcome.notification);
+        else if (outcome.succeeded) notify({ isOpen: true, kind: 'info', title: 'Settings applied & saved', message: 'Saved settings will also be used for sign-in restoration when enabled.' });
         if (outcome.succeeded) console.log('Settings applied and saved successfully.');
         return outcome.succeeded;
       } catch (error) {

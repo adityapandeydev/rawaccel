@@ -33,7 +33,7 @@ function App() {
   const driverStatus = useDriverStatus();
   const { devices, loading, error, refresh } = useDevices();
   const preferences = usePreferences();
-  const { notification, notify, dismiss } = useNotifications();
+  const { notification, toast, notify, dismiss, dismissToast } = useNotifications(preferences.showToastNotifications);
   const editor = useProfileEditor(notify);
   const transfer = useSettingsTransfer(editor, notify);
   const apply = useApplySettings(editor, driverStatus, notify);
@@ -43,6 +43,10 @@ function App() {
   const [graphs, setGraphs] = useState(['sensitivity']);
   const [expanded, setExpanded] = useState(false);
   const [confirmation, setConfirmation] = useState<Confirmation | null>(null);
+  const confirmProfileAction = (request: Confirmation) => {
+    if (preferences.showConfirmModals) setConfirmation(request);
+    else request.action();
+  };
   const sidebar = useRef<HTMLElement>(null);
   const menu = useRef<HTMLButtonElement>(null);
   const current = serializeSettingsDocument(editor.settingsMetadata, editor.profiles, editor.deviceConfig);
@@ -69,10 +73,10 @@ function App() {
     return () => { document.removeEventListener('keydown', key); menu.current?.focus(); };
   }, [navigation.open, navigation.wide]);
 
-  const reset = () => setConfirmation({ title: 'Reset this profile?', label: 'Reset profile',
+  const reset = () => confirmProfileAction({ title: 'Reset this profile?', label: 'Reset profile',
     message: 'Restore the active profile’s curve and advanced parameters to their defaults. Its name and device mappings will stay in place. Apply & save when you are ready.',
     action: () => editor.updateActiveProfile(profile => ({ ...defaultProfile(profile.name), id: profile.id })) });
-  const revert = () => setConfirmation({ title: 'Revert unsaved edits?', label: 'Revert edits',
+  const revert = () => confirmProfileAction({ title: 'Revert unsaved edits?', label: 'Revert edits',
     message: 'Restore all profiles and device settings to the last document loaded or saved in this session. This does not send anything to the driver.',
     action: () => {
       if (!editor.savedSnapshot) return;
@@ -100,7 +104,7 @@ function App() {
           {editor.profiles.map((profile, index) => <div key={profile.id} className={`profile-item ${editor.activeProfileIndex === index ? 'selected' : ''}`}>
             <button onClick={() => { editor.selectProfile(index); navigate('profiles'); }}
               aria-current={page === 'profiles' && editor.activeProfileIndex === index ? 'page' : undefined} title={profile.name}>{profile.name}</button>
-            {editor.profiles.length > 1 && <button className="delete-profile" title={`Delete ${profile.name}`} onClick={() => setConfirmation({
+            {editor.profiles.length > 1 && <button className="delete-profile" title={`Delete ${profile.name}`} onClick={() => confirmProfileAction({
               title: `Delete ${profile.name}?`, label: 'Delete profile', message: 'Remove this profile and clear its device mappings. Apply & save when you are ready.', action: () => editor.deleteProfile(index),
             })}><X size={13} /></button>}
           </div>)}
@@ -143,6 +147,8 @@ function App() {
         </div>
       </footer>}
     </main>
+    {toast.isOpen && <div className="notification-toast" role="status" aria-live="polite"><div><strong>{toast.title}</strong><p>{toast.message}</p></div>
+      <button className="btn icon-button" aria-label="Dismiss notification" onClick={dismissToast}><X size={16} /></button></div>}
     <CustomModal isOpen={confirmation !== null || notification.isOpen} title={confirmation?.title ?? notification.title} message={confirmation?.message ?? notification.message}
       onClose={() => { if (confirmation) setConfirmation(null); else dismiss(); }} onConfirm={confirmation?.action} confirmLabel={confirmation?.label} />
   </div>;

@@ -10,8 +10,6 @@ interface SettingsViewProps {
   onRefreshDriver: () => Promise<void>;
   theme: "dark" | "light" | "system";
   setTheme: (theme: "dark" | "light" | "system") => void;
-  language: string;
-  setLanguage: (lang: string) => void;
   showToastNotifications: boolean;
   setShowToastNotifications: (val: boolean) => void;
   showConfirmModals: boolean;
@@ -23,8 +21,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   onRefreshDriver,
   theme,
   setTheme,
-  language,
-  setLanguage,
   showToastNotifications,
   setShowToastNotifications,
   showConfirmModals,
@@ -47,11 +43,11 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               <label className="input-label">Language</label>
               <CustomSelect
                 width="200px"
-                value={language}
-                onChange={setLanguage}
+                value="en-US"
+                onChange={() => {}}
                 options={[
                   { value: "en-US", label: "English (US)" },
-                  { value: "ja-JP", label: "Japanese (日本語)" }
+                  { value: "ja-JP", label: "Japanese (日本語) — planned", disabled: true }
                 ]}
               />
             </div>
@@ -90,6 +86,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               />
               <span style={{ fontSize: "0.95rem", color: "var(--text-main)" }}>Show Toast Notifications</span>
             </label>
+            <p className="settings-help">Informational updates only. Errors and save warnings remain visible.</p>
             <label style={{ display: "flex", alignItems: "center", gap: "0.75rem", cursor: "pointer" }}>
               <input 
                 type="checkbox" 
@@ -97,8 +94,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 onChange={e => setShowConfirmModals(e.target.checked)} 
                 style={{ accentColor: "var(--color-primary)", width: "16px", height: "16px" }} 
               />
-              <span style={{ fontSize: "0.95rem", color: "var(--text-main)" }}>Show Confirmation Modals</span>
+              <span style={{ fontSize: "0.95rem", color: "var(--text-main)" }}>Confirm profile actions</span>
             </label>
+            <p className="settings-help">Ask before resetting, reverting, or deleting profiles.</p>
           </div>
         </section>
 
