@@ -1,10 +1,20 @@
 [package]
 name = "rawaccel-userspace"
 version = "0.1.0"
-description = "A Tauri App"
-authors = ["you"]
+description = "RawAccel mouse acceleration configuration and curve preview"
+authors = ["RawAccel contributors"]
+license = "MIT"
 edition = "2021"
 default-run = "rawaccel-userspace"
+autobins = false
+
+[[bin]]
+name = "rawaccel-userspace"
+
+# Compile the tracked diagnostic during cargo test, without shipping it.
+[[example]]
+name = "print_rust_dpi"
+path = "src/bin/print_rust_dpi.rs"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 

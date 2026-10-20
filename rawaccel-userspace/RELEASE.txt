@@ -1,0 +1,102 @@
+RawAccel userspace preview - 0.1.0
+
+This is development work intended for an upstream contribution. It is not an
+official signed RawAccel release. The application and installer are unsigned.
+The RawAccel identity is retained; Japanese translation is planned.
+
+INSTALLATION
+Use the setup EXE for a current-user installation. Windows lets you choose the
+destination folder. The installer provides the WebView2 bootstrapper; installing
+WebView2 may require internet access. It does not install or replace a driver.
+If needed, first obtain the official signed driver from the release Assets at
+https://github.com/RawAccelOfficial/rawaccel/releases and follow its installation
+instructions, including its reboot. The driver is installed once, not at every
+sign-in. Do not put this preview over your only copy of the original application.
+
+The portable ZIP contains RawAccel.exe, portable.txt, this guide, and the license.
+Extract it to a stable writable folder. Portable use requires WebView2 already
+installed. No writer.exe or background GUI process is needed for restoration.
+
+SETTINGS AND RECOVERY
+Without portable.txt, authoritative settings are stored in
+%LOCALAPPDATA%\RawAccel\settings.json. A writable application folder receives a
+secondary copy. Tauri's default current-user installation may use that same
+RawAccel folder; identical paths are a single location, not two independent
+copies. A custom installation folder keeps the two locations distinct.
+
+With portable.txt beside the executable, adjacent settings.json is authoritative
+and the Local AppData file is its recovery mirror. Restart after changing this
+marker. A successful save always updates the authoritative file; mirror failures
+are reported. Protected folders may prevent an adjacent mirror from updating.
+The working directory is never used to locate or save settings.
+
+On a normal UI launch, missing/corrupt files can be recovered from another copy
+or settings.json.bak. Files are validated and migration happens in memory. Apply
+& Save explicitly writes the migrated format and preserves a prior backup. Keep
+an export of the original application's settings when testing both GUIs, since
+the original GUI may not understand this preview's modern document format.
+Startup does not silently apply a fallback or older backup: recover in the UI
+and explicitly Apply & Save first. Disk settings never prove current driver state.
+
+SIGN-IN RESTORATION
+First use Apply & Save with a supported configuration. Then enable Restore
+settings at sign-in in Settings. The same EXE runs with --silent, validates the
+authoritative file and driver protocol, applies once, records startup-result.json
+beside that file, and exits. Driver readiness retries are bounded. Exit code 0
+means restoration succeeded, 1 means restoration failed, and 2 means the result
+could not be recorded (settings might already have been applied).
+
+Remove/disable previous RawAccel or writer.exe startup entries to avoid competing
+writers. After moving a portable executable, use Update startup path from the
+new location. A copied JSON file cannot repair a missing startup executable.
+Check Settings for the historical startup result; it does not verify live state.
+
+The default build targets the stock signed RawAccel 1.7.0 protocol. All profiles
+must use supported modes. Tiered Linear and Natural remain editable and visible
+in every graph combination, but cannot be sent to the stock driver. A future
+matching signed driver requires a separately verified compatibility update.
+Do not enable custom-tiered-driver for a public stock-driver package.
+
+UNINSTALLATION
+Uninstall through Windows Installed apps. The application uninstall leaves the
+separately installed driver and saved settings/recovery copies in place. Its
+startup entry is removed; a different installation's startup command is retained.
+Tauri's optional application-data deletion also removes WebView preferences,
+including theme and notification choices. It does not request driver removal.
+
+BUILD AND OFFLINE CHECKS (Windows x64)
+Install developer tools globally, not in this repository. Run npm ci for this
+application's dependencies, npm test, npm run build, and cargo test --locked from
+src-tauri. If a sandbox denies Temp-file replacements, point process-local TEMP
+and TMP to an ignored writable directory under src-tauri/target before testing.
+Only the application is a shipping binary. The tracked DPI diagnostic remains
+available as cargo run --example print_rust_dpi; bare cargo test compiles it too.
+
+npm run test:ui builds and checks the production UI with a fake Tauri backend in
+an isolated Chrome profile. It never writes startup registry keys or settings to
+a real driver. It requires Chrome and globally available Playwright; set NODE_PATH
+to the directory containing the global Playwright package. Screenshots are saved
+under src-tauri/target/ui-checks. Native close handling still needs Windows testing.
+
+npm run bundle:windows builds the NSIS setup and checks its generated payload
+against an explicit allowlist, rejecting personal settings or scratch executables.
+npm run bundle:portable builds and
+creates the portable ZIP under src-tauri/target/distribution. Build artifacts and
+personal settings must not be committed or included by broad directory globs.
+No release has been published by these commands.
+
+RELEASE CHECKLIST - complete manually before calling this production-ready
+[ ] Repeat frontend tests/build, Rust tests and the mocked UI regression checks.
+[ ] Confirm app, Cargo and installer versions agree; record artifact SHA-256 hashes.
+[ ] Inspect ZIP contents: one EXE, portable marker, guide, license; no user settings.
+[ ] Inspect installer contents and signature status; do not claim an unsigned
+    development package is an official signed release.
+[ ] On an approved test machine, test fresh install, update, custom paths with
+    spaces, protected-folder mirror failures, and uninstall with settings retained.
+[ ] Verify native close/discard/cancel behavior and Apply-in-progress protection.
+[ ] With explicit live-test authorization, verify a supported Apply and sign-in
+    restoration against an installed compatible signed driver, without a UI window.
+[ ] Test unavailable/incompatible driver, corrupt primary, recovery and unsaved edits.
+[ ] Leave reading back applied configuration for a separate scoped change. Keep
+    kernel changes, installation, signing and Tiered laboratory work behind the
+    separate kernel-phase approval gate.

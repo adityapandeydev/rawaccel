@@ -4,6 +4,7 @@ import React from "react";
 import { Globe, Bell, Info } from "lucide-react";
 import { CustomSelect } from "./CustomSelect";
 import { StartupSettings } from './StartupSettings';
+import { version } from '../../package.json';
 
 interface SettingsViewProps {
   driverStatus: DriverStatusSnapshot;
@@ -114,13 +115,14 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem", paddingLeft: "1.5rem" }}>
             <DriverStatusCard snapshot={driverStatus} onRefresh={onRefreshDriver} />
-            <a href="https://github.com/a1xd/rawaccel" target="_blank" rel="noreferrer" style={{ color: "var(--color-primary)", textDecoration: "none", fontSize: "0.95rem" }}>
+            <p className="settings-help">RawAccel · {version} userspace preview</p>
+            <a href="https://github.com/RawAccelOfficial/rawaccel" target="_blank" rel="noreferrer" style={{ color: "var(--color-primary)", textDecoration: "none", fontSize: "0.95rem" }}>
               GitHub Repository
             </a>
             <a href="https://discord.gg/Q3EebmD" target="_blank" rel="noreferrer" style={{ color: "var(--color-primary)", textDecoration: "none", fontSize: "0.95rem" }}>
               Join the Discord
             </a>
-            <a href="https://github.com/a1xd/rawaccel/blob/master/doc/Guide.md" target="_blank" rel="noreferrer" style={{ color: "var(--color-primary)", textDecoration: "none", fontSize: "0.95rem" }}>
+            <a href="https://github.com/RawAccelOfficial/rawaccel/blob/master/doc/Guide.md" target="_blank" rel="noreferrer" style={{ color: "var(--color-primary)", textDecoration: "none", fontSize: "0.95rem" }}>
               User Guide
             </a>
           </div>
