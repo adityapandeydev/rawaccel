@@ -150,6 +150,15 @@ button:disabled { cursor: not-allowed; opacity: .5; }
 .settings-grid > div { display: none; }
 .settings-grid > section > div:nth-child(2) { padding-left: 0 !important; }
 .settings-grid .custom-select { width: 170px !important; }
+.startup-settings h3 { display: flex; align-items: center; gap: 8px; margin: 0 0 16px; font-size: 1.1rem; }
+.settings-checkbox { display: flex; align-items: center; gap: 10px; cursor: pointer; }
+.settings-checkbox input { accent-color: var(--color-primary); width: 16px; height: 16px; }
+.settings-help { color: var(--text-muted); font-size: .85rem; line-height: 1.6; }
+.settings-actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 14px 0; }
+.settings-paths { margin: 18px 0; font-size: .85rem; }
+.settings-paths dt { color: var(--text-muted); margin-top: 12px; }
+.settings-paths dd { margin: 4px 0 0; overflow-wrap: anywhere; user-select: text; }
+.startup-result { display: flex; flex-direction: column; gap: 6px; margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--border); font-size: .85rem; overflow-wrap: anywhere; user-select: text; }
 .mapping-card { flex-wrap: wrap; }
 .modal-content { background: var(--bg-panel); max-width: min(500px,calc(100vw - 40px)); box-shadow: var(--shadow-panel); }
 .modal-body { user-select: text; }

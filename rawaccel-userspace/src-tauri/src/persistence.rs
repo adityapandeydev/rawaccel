@@ -132,6 +132,15 @@ fn atomic_write(path: &Path, content: &str) -> io::Result<()> {
     })
 }
 
+/// Small application state files use atomic replacement without settings backups.
+pub(crate) fn write_state(path: &Path, content: &str) -> io::Result<()> {
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    let staged = StagedFile::new(path, content.as_bytes())?;
+    fs::rename(&staged.path, path)
+}
+
 fn atomic_write_with_replace(
     path: &Path,
     content: &str,

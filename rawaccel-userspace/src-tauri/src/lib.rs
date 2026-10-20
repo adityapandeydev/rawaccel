@@ -17,6 +17,27 @@ pub mod math;
 pub mod models;
 pub mod mouse_tracker;
 pub mod persistence;
+pub mod startup;
+
+#[tauri::command]
+fn get_startup_info() -> Result<startup::StartupInfo, String> {
+    startup::info()
+}
+
+#[tauri::command]
+fn set_startup_enabled(enabled: bool) -> Result<(), String> {
+    startup::set_enabled(enabled)
+}
+
+#[tauri::command]
+fn open_settings_folder(app: tauri::AppHandle) -> Result<(), String> {
+    use tauri_plugin_opener::OpenerExt;
+    let path = config::settings_paths()?.primary;
+    let folder = path.parent().ok_or("Settings directory is unavailable")?;
+    std::fs::create_dir_all(folder).map_err(|error| error.to_string())?;
+    app.opener().open_path(folder.display().to_string(), None::<&str>)
+        .map_err(|error| error.to_string())
+}
 
 #[tauri::command]
 async fn get_driver_status() -> Result<driver_status::DriverStatus, String> {
@@ -52,7 +73,6 @@ fn get_devices() -> Vec<devices::DeviceInfo> {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
-        .plugin(tauri_plugin_autostart::Builder::new().args(vec!["--silent"]).build())
         .plugin(tauri_plugin_opener::init())
         .setup(|app| {
             mouse_tracker::start(app.handle().clone());
@@ -63,7 +83,10 @@ pub fn run() {
             load_settings,
             import_settings,
             get_devices,
-            get_driver_status
+            get_driver_status,
+            get_startup_info,
+            set_startup_enabled,
+            open_settings_folder
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
