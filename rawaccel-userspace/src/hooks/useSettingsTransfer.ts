@@ -1,19 +1,28 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import type { SettingsLoadReport } from '../types';
 import { serializeSettingsDocument } from '../settingsDocument';
 import type { ProfileEditor } from './useProfileEditor';
 import type { Notify } from './useNotifications';
 
-export function useSettingsTransfer(editor: ProfileEditor, notify: Notify) {
+export function useSettingsTransfer(editor: ProfileEditor, notify: Notify, confirmReplace: (replace: () => void) => void) {
   const { replaceDocument } = editor;
+  const current = serializeSettingsDocument(editor.settingsMetadata, editor.profiles, editor.deviceConfig);
+  const latest = useRef({ current, saved: editor.savedSnapshot, confirmReplace });
+  latest.current = { current, saved: editor.savedSnapshot, confirmReplace };
   useEffect(() => {
     let active = true;
+    const baseline = latest.current;
     async function load() {
       try {
         const result = await invoke<SettingsLoadReport>('load_settings');
         const parsed = JSON.parse(result.settings_json);
         if (!active) return;
+        if (latest.current.current !== baseline.current || latest.current.saved !== baseline.saved) {
+          notify({ isOpen: true, title: 'Your edits were kept',
+            message: `Saved settings finished loading after you started editing. They have not replaced your changes. To load them, use Load and select ${result.source}.` });
+          return;
+        }
         replaceDocument(parsed);
         if (result.recovered || result.migrated) {
           notify({
@@ -37,8 +46,11 @@ export function useSettingsTransfer(editor: ProfileEditor, notify: Notify) {
     try {
       const text = await file.text();
       const migrated = await invoke<string>('import_settings', { rawJson: text });
-      replaceDocument(JSON.parse(migrated));
-      notify({ isOpen: true, kind: 'info', title: 'Settings Imported', message: 'Settings loaded into the editor. Use Apply & Save to update the driver and startup settings.' });
+      const document = JSON.parse(migrated);
+      latest.current.confirmReplace(() => {
+        replaceDocument(document);
+        notify({ isOpen: true, kind: 'info', title: 'Settings Imported', message: 'Settings loaded into the editor. Use Apply & Save to update the driver and startup settings.' });
+      });
     } catch (error) {
       notify({ isOpen: true, title: 'Import Error',
         message: typeof error === 'string' ? error : 'Failed to parse or migrate settings JSON.' });

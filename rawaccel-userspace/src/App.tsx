@@ -18,6 +18,7 @@ import { usePreferences } from './hooks/usePreferences';
 import { useNotifications } from './hooks/useNotifications';
 import { useNavigation } from './hooks/useNavigation';
 import { useWindowState } from './hooks/useWindowState';
+import { useUnsavedChanges } from './hooks/useUnsavedChanges';
 import { serializeSettingsDocument } from './settingsDocument';
 import { validateSettings } from './validation';
 import { defaultProfile } from './types';
@@ -35,7 +36,6 @@ function App() {
   const preferences = usePreferences();
   const { notification, toast, notify, dismiss, dismissToast } = useNotifications(preferences.showToastNotifications);
   const editor = useProfileEditor(notify);
-  const transfer = useSettingsTransfer(editor, notify);
   const apply = useApplySettings(editor, driverStatus, notify);
   const navigation = useNavigation();
   const [page, setPage] = useState<Page>('profiles');
@@ -51,6 +51,14 @@ function App() {
   const menu = useRef<HTMLButtonElement>(null);
   const current = serializeSettingsDocument(editor.settingsMetadata, editor.profiles, editor.deviceConfig);
   const status = documentStatus(current, editor.savedSnapshot, editor.snapshotOrigin, apply.appliedSnapshot);
+  const guard = useUnsavedChanges(status.edited, apply.isApplying, (action, reason) => setConfirmation({
+    title: reason === 'close' ? 'Discard unsaved edits?' : 'Replace unsaved edits?',
+    label: reason === 'close' ? 'Discard edits & close' : 'Replace edits',
+    message: reason === 'close' ? 'Closing RawAccel will discard unsaved edits. Export them or use Apply & Save to keep them.'
+      : 'Loading this file will replace unsaved profiles and device settings. Export them or use Apply & Save first if you want to keep them.',
+    action,
+  }), notify);
+  const transfer = useSettingsTransfer(editor, notify, guard.confirmReplace);
   const validationError = validateSettings(editor.profiles, editor.deviceConfig, editor.settingsMetadata.default_device_config);
   const disabledReason = validationError ?? apply.applyDisabledReason;
   const tieredPreview = !driverStatus.report?.tiered_apply_enabled && [editor.activeProfile.accel_x, editor.activeProfile.accel_y].some(args => args.mode === 'tiered');

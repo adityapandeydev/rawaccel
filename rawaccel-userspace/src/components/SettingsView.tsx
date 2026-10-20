@@ -96,7 +96,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               />
               <span style={{ fontSize: "0.95rem", color: "var(--text-main)" }}>Confirm profile actions</span>
             </label>
-            <p className="settings-help">Ask before resetting, reverting, or deleting profiles.</p>
+            <p className="settings-help">Ask before resetting, reverting, or deleting profiles. Closing or importing over unsaved edits always asks first.</p>
           </div>
         </section>
 

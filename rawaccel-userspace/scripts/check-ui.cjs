@@ -1,0 +1,134 @@
+const { chromium } = require('playwright');
+const http = require('node:http');
+const fs = require('node:fs');
+const path = require('node:path');
+const assert = require('node:assert/strict');
+// Playwright is a global developer tool; set NODE_PATH to its module directory.
+const artifacts = path.resolve(__dirname, '../src-tauri/target/ui-checks');
+fs.mkdirSync(artifacts, {recursive:true});
+const root = path.resolve(__dirname, '../dist');
+const status = JSON.parse(fs.readFileSync(path.resolve(__dirname, '../src-tauri/tests/fixtures/driver-status/stock-connected.json')));
+const mock = `<script>
+window.mockCalls=[]; window.mockEnabled=false; window.mockReject=false;
+window.__TAURI_INTERNALS__={transformCallback:()=>1,invoke:async(cmd,args={})=>{
+window.mockCalls.push({cmd,args});
+if(cmd==='get_driver_status')return ${JSON.stringify(status)};
+if(cmd==='get_devices')return [];
+if(cmd==='load_settings'){if(location.search.includes('delayload'))return await new Promise(resolve=>window.mockResolveLoad=resolve);throw 'No settings.json found';}
+if(cmd==='get_startup_info')return {enabled:window.mockEnabled,registration_error:null,settings_path:'C:\\\\Users\\\\Example\\\\AppData\\\\Local\\\\RawAccel\\\\settings.json',mirror_path:'D:\\\\Custom Apps\\\\RawAccel\\\\settings.json',executable_path:'D:\\\\Custom Apps\\\\RawAccel\\\\RawAccel.exe',portable:false,last_result:{restored:false,timestamp_secs:1792454400,settings_path:'C:\\\\Users\\\\Example\\\\AppData\\\\Local\\\\RawAccel\\\\settings.json',attempts:10,error:'Driver not ready'},diagnostic_error:null};
+if(cmd==='set_startup_enabled'){if(window.mockReject)throw 'Startup registration denied';window.mockEnabled=args.enabled;return;}
+if(cmd==='open_settings_folder')return;
+if(cmd==='apply_settings')return {applied:true,saved:true,saved_paths:['mock settings.json'],warnings:[],save_error:null};
+if(cmd==='import_settings')return args.rawJson;
+if(cmd.startsWith('plugin:event|'))return 1;
+throw 'Unexpected mock command '+cmd;
+}};
+window.__TAURI_EVENT_PLUGIN_INTERNALS__={unregisterListener:()=>{}};
+</script>`;
+const server = http.createServer((req,res)=>{
+  const pathname = new URL(req.url,'http://localhost').pathname;
+  const file = pathname==='/' ? path.join(root,'index.html') : path.join(root,pathname);
+  if(!file.startsWith(root+path.sep)){res.writeHead(403).end();return;}
+  try {
+    let content=fs.readFileSync(file);
+    if(file.endsWith('.html'))content=content.toString().replace('<head>','<head>'+mock);
+    res.setHeader('Content-Type',file.endsWith('.html')?'text/html':file.endsWith('.js')?'text/javascript':file.endsWith('.css')?'text/css':'application/octet-stream');
+    res.end(content);
+  } catch {res.writeHead(404).end();}
+});
+(async()=>{
+  await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
+  const browser=await chromium.launch({headless:true,channel:'chrome'});
+  try {
+    const page=await browser.newPage({viewport:{width:1440,height:1000},colorScheme:'dark'});
+    const errors=[];page.on('pageerror',e=>errors.push(String(e)));
+    await page.goto('http://127.0.0.1:'+server.address().port);
+    await page.getByRole('button',{name:'Settings',exact:true}).click();
+    const checkbox=page.getByRole('checkbox',{name:'Restore settings at sign-in'});
+    await checkbox.waitFor();
+    await checkbox.check();
+    await page.getByRole('button',{name:'Update startup path'}).waitFor();
+    assert.equal(await checkbox.isChecked(),true);
+    await page.getByRole('button',{name:'Update startup path'}).click();
+    await page.getByRole('button',{name:'Refresh status'}).waitFor();
+    await checkbox.uncheck();
+    await page.getByRole('button',{name:'Refresh status'}).waitFor();
+    assert.equal(await checkbox.isChecked(),false);
+    await page.evaluate(()=>{window.mockReject=true;});
+    await checkbox.click();
+    await page.getByRole('alert').filter({hasText:'Startup registration denied'}).waitFor();
+    assert.equal(await checkbox.isChecked(),false);
+    await page.getByRole('button',{name:'Open settings folder'}).click();
+    const before=await page.evaluate(()=>window.mockCalls.filter(x=>x.cmd==='set_startup_enabled').length);
+    await page.getByRole('button',{name:'Refresh status'}).click();
+    await page.getByRole('button',{name:'Refresh status'}).waitFor();
+    assert.equal(await page.evaluate(()=>window.mockCalls.filter(x=>x.cmd==='set_startup_enabled').length),before);
+    assert.equal(await page.evaluate(()=>window.mockCalls.some(x=>x.cmd==='apply_settings')),false);
+    const loads=await page.evaluate(()=>window.mockCalls.filter(x=>x.cmd==='load_settings').length);
+    await page.getByRole('checkbox',{name:'Show Toast Notifications'}).uncheck();
+    await page.getByRole('checkbox',{name:'Confirm profile actions'}).uncheck();
+    assert.equal(await page.evaluate(()=>window.mockCalls.filter(x=>x.cmd==='load_settings').length),loads);
+    page.once('dialog',dialog=>dialog.accept());
+    await page.reload();
+    await page.getByRole('button',{name:'Settings',exact:true}).click();
+    assert.equal(await page.getByRole('checkbox',{name:'Show Toast Notifications'}).isChecked(),false);
+    assert.equal(await page.getByRole('checkbox',{name:'Confirm profile actions'}).isChecked(),false);
+    assert.equal(await page.getByRole('option',{name:'Japanese (日本語) — planned'}).isDisabled(),true);
+    await page.getByRole('button',{name:'Profiles',exact:true}).click();
+    await page.getByRole('button',{name:'Reset',exact:true}).click();
+    assert.equal(await page.getByRole('dialog').count(),0);
+    await page.getByRole('button',{name:'Apply & Save',exact:true}).click();
+    assert.equal(await page.locator('.notification-toast').count(),0);
+    await page.getByRole('button',{name:'Settings',exact:true}).click();
+    await page.getByRole('checkbox',{name:'Show Toast Notifications'}).check();
+    await page.getByRole('checkbox',{name:'Confirm profile actions'}).check();
+    await page.getByRole('button',{name:'Profiles',exact:true}).click();
+    await page.getByRole('button',{name:'Reset',exact:true}).click();
+    await page.getByRole('dialog',{name:'Reset this profile?'}).waitFor();
+    await page.getByRole('button',{name:'Cancel',exact:true}).click();
+    await page.getByRole('button',{name:'Apply & Save',exact:true}).click();
+    await page.locator('.notification-toast').waitFor();
+    await page.getByRole('button',{name:'Dismiss notification'}).click();
+    await page.getByRole('button',{name:'Settings',exact:true}).click();
+    await page.getByRole('checkbox',{name:'Confirm profile actions'}).uncheck();
+    await page.getByRole('button',{name:'Profiles',exact:true}).click();
+    await page.getByRole('textbox',{name:'Profile name'}).fill('Unsaved edit');
+    const imported=JSON.parse(await page.evaluate(()=>window.mockCalls.findLast(x=>x.cmd==='apply_settings').args.settingsJson));
+    imported.profiles[0].name='Imported profile';
+    const upload={name:'settings.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(imported))};
+    await page.locator('#import-settings-upload').setInputFiles(upload);
+    await page.getByRole('dialog',{name:'Replace unsaved edits?'}).waitFor({timeout:1500});
+    await page.getByRole('button',{name:'Cancel',exact:true}).click();
+    assert.equal(await page.getByRole('textbox',{name:'Profile name'}).inputValue(),'Unsaved edit');
+    await page.locator('#import-settings-upload').setInputFiles(upload);
+    await page.getByRole('button',{name:'Replace edits',exact:true}).click();
+    assert.equal(await page.getByRole('textbox',{name:'Profile name'}).inputValue(),'Imported profile');
+    await page.getByRole('button',{name:'Settings',exact:true}).click();
+    await page.screenshot({path:path.join(artifacts,'startup-settings-dark.png'),fullPage:true});
+    await page.getByRole('button',{name:'Switch to light theme'}).click();
+    await page.setViewportSize({width:1024,height:768});
+    await page.waitForFunction(()=>getComputedStyle(document.body).color==='rgb(25, 42, 54)');
+    await page.screenshot({path:path.join(artifacts,'startup-settings-light-min.png'),fullPage:true});
+    const overflow=await page.evaluate(()=>document.documentElement.scrollWidth>window.innerWidth);
+    assert.equal(overflow,false);
+    assert.deepEqual(errors,[]);
+    const late=await browser.newPage({viewport:{width:1440,height:1000}});
+    late.on('pageerror',e=>errors.push(String(e)));
+    await late.goto('http://127.0.0.1:'+server.address().port+'/?delayload=1');
+    await late.getByRole('textbox',{name:'Profile name'}).fill('Keep early edits');
+    await late.evaluate(doc=>window.mockResolveLoad({settings_json:JSON.stringify(doc),source:'mock settings.json',recovered:false,migrated:false,warnings:[]}),imported);
+    await late.getByRole('dialog',{name:'Your edits were kept'}).waitFor();
+    await late.getByRole('button',{name:'OK',exact:true}).click();
+    assert.equal(await late.getByRole('textbox',{name:'Profile name'}).inputValue(),'Keep early edits');
+    const dialogPromise=late.waitForEvent('dialog');
+    const reload=late.reload().catch(()=>undefined);
+    const unload=await dialogPromise;
+    assert.equal(unload.type(),'beforeunload');
+    await unload.dismiss();
+    await reload;
+    assert.equal(await late.getByRole('textbox',{name:'Profile name'}).inputValue(),'Keep early edits');
+    await late.close();
+    assert.deepEqual(errors,[]);
+    console.log(JSON.stringify({checks:'startup controls; persistent preferences; language deferral; toast on/off; reset confirmation on/off; import discard protection; delayed load protection; browser close protection; themes; minimum width',pageErrors:errors,overflow,calls:await page.evaluate(()=>window.mockCalls.filter(x=>!x.cmd.startsWith('plugin:')).map(x=>x.cmd))},null,2));
+  }finally{await browser.close();server.close();}
+})().catch(e=>{console.error(e);server.close();process.exitCode=1;});

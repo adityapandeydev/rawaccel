@@ -8,6 +8,7 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "test:math": "node --test scripts/math.test.mjs",
+    "test:ui": "npm run build && node scripts/check-ui.cjs",
     "test:math-reference": "python scripts/check_math_reference.py",
     "test:driver-status": "node --test scripts/driver-status.test.mjs",
     "test:abi": "python scripts/check_driver_abi.py",
